@@ -189,12 +189,14 @@ jobs:
 
       - name: Commit and push
         run: |
-          if git diff --quiet; then
+          # Check for both modified files and new untracked files
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
             echo "ℹ️  No changes to commit"
           else
-            echo "📝 Committing changes..."
+            echo "📝 Staging Assets folder..."
             git add Assets/
-            git commit -m "Sync assets from Google Drive [automated]"
+            echo "📝 Committing changes..."
+            git commit -m "Sync assets from Google Drive [automated]" || echo "Nothing to commit"
             echo "🚀 Pushing to main..."
             git push origin main
             echo "✅ Push successful"
