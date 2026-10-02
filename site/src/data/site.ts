@@ -7,4 +7,5 @@ export const SITE = {
   bookingUrl: 'https://mirror-finish-mobile-detailing.square.site/',
   serviceArea: ['Montgomery', 'Wetumpka', 'Prattville', 'Pike Road', 'Millbrook', 'Cecil', 'Hayneville', 'White Hall'],
   region: 'AL',
+  instagramUrl: 'https://www.instagram.com/mfmd_mgm/',
 } as const;

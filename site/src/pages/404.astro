@@ -1,10 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
-import { SITE } from '../data/site';
+import Header from '../components/Header.astro';
 ---
 <Base title="Page not found | Mirror Finish Mobile Detailing" description="This page could not be found.">
-  <main id="main" style="padding:96px 20px;text-align:center">
+  <Header minimal />
+  <main id="main" class="wrap" style="padding:var(--s9) var(--s5);text-align:center">
     <h1>Page not found</h1>
-    <p><a href="/">Back to the home page</a> or <a href={SITE.bookingUrl}>book a detail</a>.</p>
+    <p><a class="btn" href="/book">Build my detail</a></p>
   </main>
 </Base>

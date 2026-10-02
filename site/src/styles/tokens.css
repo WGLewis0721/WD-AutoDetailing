@@ -1,33 +1,35 @@
+/* Design tokens. Colour split: white 60 / black 30 / gold 10. Nothing outside this file may hard-code a colour. */
 :root {
-  --bg: #0b0b0c;
-  --surface: #151517;
-  --surface-2: #1d1d20;
-  --line: #2c2c30;
-  --text: #f4f1ea;
-  --muted: #b3aea3;
+  /* white (60): surfaces */
+  --white: #ffffff;
+  --ivory: #f8f6f1;
+  --line-light: #e7e3da;
+  /* black (30): text, bands, nav */
+  --black: #0b0b0c;
+  --ink-2: #1c1c1f;
+  --muted: #5c5a55;
+  --muted-on-dark: #b9b4a8;
+  --line-dark: #2e2e32;
+  /* gold (10): accents, primary action, rules */
   --gold: #c8a45c;
   --gold-hi: #e2c07a;
-  --on-gold: #14110a;
-  --radius: 12px;
-  --max: 1120px;
+  --gold-deep: #8a6d2f;
+  /* overlays (derived from white/black) */
+  --scrim-light: rgba(255, 255, 255, .94);
+  --scrim-dark: rgba(11, 11, 12, .55);
+  --scrim-dark-strong: rgba(11, 11, 12, .8);
+  /* feedback */
+  --danger: #b3261e;
+
+  /* spacing (4px base) */
+  --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem; --s5: 1.5rem; --s6: 2rem; --s7: 3rem; --s8: 4rem; --s9: 6rem;
+  /* shape */
+  --radius: 14px;
+  --radius-pill: 999px;
+  --shadow: 0 12px 32px rgba(11, 11, 12, .1);
+  --max: 1160px;
+  --tap: 48px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --t: 180ms;
 }
-*, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 76px; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 400 1rem/1.6 var(--font); -webkit-font-smoothing: antialiased; }
-img { max-width: 100%; height: auto; display: block; }
-a { color: var(--gold-hi); }
-h1, h2, h3 { line-height: 1.15; margin: 0 0 .5em; letter-spacing: -.01em; }
-h1 { font-size: clamp(2rem, 6vw, 3.4rem); }
-h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); }
-.wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
-section { padding: 56px 0; }
-.eyebrow { color: var(--gold); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: .8rem; margin: 0 0 .6rem; }
-.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 22px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 2px solid var(--gold); background: var(--gold); color: var(--on-gold); }
-.btn:hover { background: var(--gold-hi); border-color: var(--gold-hi); }
-.btn.ghost { background: transparent; color: var(--text); }
-.btn.ghost:hover { background: var(--surface-2); }
-:focus-visible { outline: 3px solid var(--gold-hi); outline-offset: 3px; }
-.skip { position: absolute; left: -999px; top: 8px; background: var(--gold); color: var(--on-gold); padding: 8px 14px; border-radius: 8px; z-index: 100; }
-.skip:focus { left: 8px; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

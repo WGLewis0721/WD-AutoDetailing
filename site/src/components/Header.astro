@@ -1,0 +1,26 @@
+---
+import { Image } from 'astro:assets';
+import { SITE } from '../data/site';
+import logo from '../assets/logo.webp';
+const { minimal = false } = Astro.props;
+---
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="/" aria-label={SITE.name}>
+      <Image src={logo} alt="" width={96} height={96} loading="eager" />
+      <span>{SITE.name}</span>
+    </a>
+    {!minimal && (
+      <nav class="nav" aria-label="Main">
+        <a href="/#packages">Packages</a>
+        <a href="/#how">How it works</a>
+        <a href="/#gallery">Work</a>
+        <a href="/#areas">Areas</a>
+      </nav>
+    )}
+    <div class="actions">
+      <a class="btn btn--ghost btn--sm" href={SITE.phoneSms}>Call / Text</a>
+      {!minimal && <a class="btn btn--sm" href="/book">Book now</a>}
+    </div>
+  </div>
+</header>

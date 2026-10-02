@@ -1,0 +1,30 @@
+---
+import { getImage } from 'astro:assets';
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import '../styles/book.css';
+import pass from '../assets/hf-pass.png';
+const art = (await getImage({ src: pass, width: 880, format: 'webp' })).src;
+---
+<Base title="Build and Book Your Detail | Mirror Finish Mobile Detailing MGM" description="Pick your vehicle, build your detail, see your price instantly and book a mobile detail in Montgomery, AL with a 20% deposit.">
+  <Header minimal />
+  <div class="demo" role="note">PREVIEW — sample availability, no payment is taken</div>
+  <main id="main" class="book wrap">
+    <div id="app" data-pass-art={art} data-home="/">
+      <nav id="stepper" class="stepper" aria-label="Booking steps"></nav>
+      <div class="layout">
+        <section id="panel" class="panel" aria-live="polite"></section>
+        <aside class="side" aria-label="Your build">
+          <div class="stage"><div id="viewer"></div><div id="vtag" class="vtag"></div></div>
+          <div id="summary" class="summary"></div>
+          <div class="nav2 only-d"><button id="back" class="btn btn--ghost" type="button" hidden>Back</button><button id="next" class="btn" type="button">Continue</button></div>
+        </aside>
+      </div>
+      <div class="mbar"><div id="mtotal" class="tot"></div><button id="mnext" class="btn" type="button">Next</button></div>
+    </div>
+  </main>
+  <script>
+    import { initBooking } from '../lib/booking';
+    initBooking();
+  </script>
+</Base>
