@@ -112,7 +112,11 @@ jobs:
                   print(f"  📊 Found {len(files)} file(s) in {folder_name}")
 
                   downloaded = 0
+                  allowed = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.ico', '.avif', '.heic', '.mp4', '.mov', '.webm', '.pdf')
                   for file in files:
+                      if not file['name'].lower().endswith(allowed):
+                          print(f"    - skipped {file['name']} (not an image/video/pdf)")
+                          continue
                       try:
                           file_path = os.path.join(output_dir, file['name'])
                           request = drive.files().get_media(fileId=file['id'])
