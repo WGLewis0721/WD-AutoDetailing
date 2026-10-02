@@ -1,0 +1,152 @@
+name: Sync Google Drive Assets
+
+on:
+  schedule:
+    - cron: '* * * * *'  # Every minute
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  sync-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: Create sync script
+        run: |
+          cat > sync_drive.py << 'EOF'
+          import json
+          import os
+          import sys
+          from google.oauth2.service_account import Credentials
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaIoBaseDownload
+          import io
+
+          # Service account credentials from GitHub secret
+          creds_json = os.environ.get('GOOGLE_API_KEY')
+          creds_dict = json.loads(creds_json)
+
+          # Authenticate
+          credentials = Credentials.from_service_account_info(creds_dict, scopes=['https://www.googleapis.com/auth/drive'])
+          drive_service = build('drive', 'v3', credentials=credentials)
+
+          # Folder ID from GitHub secret
+          folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+
+          # Asset subfolders to sync
+          asset_types = ['Images', 'Icons', 'Photos', 'Videos', 'Logos', 'UI-Components']
+
+          files_synced = 0
+
+          def get_folder_id_by_name(parent_id, folder_name):
+              """Get folder ID by name within parent folder"""
+              query = f"'{parent_id}' in parents and name='{folder_name}' and trashed=false and mimeType='application/vnd.google-apps.folder'"
+              results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+              items = results.get('files', [])
+              return items[0]['id'] if items else None
+
+          def sync_folder(parent_id, local_path, folder_type):
+              """Sync files from Google Drive folder to local folder"""
+              global files_synced
+
+              if not os.path.exists(local_path):
+                  os.makedirs(local_path)
+
+              # Get all files in folder
+              query = f"'{parent_id}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'"
+              results = drive_service.files().list(
+                  q=query,
+                  spaces='drive',
+                  fields='files(id, name, modifiedTime)',
+                  pageSize=100
+              ).execute()
+
+              items = results.get('files', [])
+
+              if not items:
+                  print(f"  No files found in {folder_type}")
+                  return
+
+              for item in items:
+                  try:
+                      file_path = os.path.join(local_path, item['name'])
+
+                      # Download file
+                      request = drive_service.files().get_media(fileId=item['id'])
+                      file_handler = io.BytesIO()
+                      downloader = MediaIoBaseDownload(file_handler, request)
+
+                      done = False
+                      while not done:
+                          status, done = downloader.next_chunk()
+
+                      # Write to disk
+                      with open(file_path, 'wb') as f:
+                          f.write(file_handler.getvalue())
+
+                      files_synced += 1
+                      print(f"  ✓ Synced: {item['name']}")
+
+                  except Exception as e:
+                      print(f"  ✗ Error syncing {item['name']}: {str(e)}")
+
+          # Ensure Assets folder exists locally
+          if not os.path.exists('Assets'):
+              os.makedirs('Assets')
+
+          # Get Assets folder ID from Gray Matter LLC
+          assets_folder_id = get_folder_id_by_name(folder_id, 'Assets')
+
+          if not assets_folder_id:
+              print("ERROR: Assets folder not found in Gray Matter LLC folder")
+              sys.exit(1)
+
+          print(f"Found Assets folder: {assets_folder_id}\n")
+
+          # Sync each asset type
+          for asset_type in asset_types:
+              type_folder_id = get_folder_id_by_name(assets_folder_id, asset_type)
+
+              if type_folder_id:
+                  print(f"Syncing {asset_type}...")
+                  local_path = f'Assets/{asset_type}'
+                  sync_folder(type_folder_id, local_path, asset_type)
+              else:
+                  print(f"Skipping {asset_type} - folder not found")
+
+          print(f"\n✓ Sync complete! {files_synced} files synced.")
+          EOF
+
+          python sync_drive.py
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Asset Sync Bot"
+
+      - name: Commit and push changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add Assets/
+            git commit -m "Sync assets from Google Drive [automated]"
+            git push
+          fi
