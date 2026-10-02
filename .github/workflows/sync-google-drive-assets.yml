@@ -41,10 +41,10 @@ jobs:
           print("🔍 DEBUG: Starting Google Drive Asset Sync")
           print("=" * 60)
 
-          # Service account credentials from GitHub secret
-          creds_json = os.environ.get('GCP_SA_KEY')
+          # Service account credentials from GitHub secret (try all variants)
+          creds_json = os.environ.get('GCP_SA_KEY') or os.environ.get('GOOGLE_API_KEY')
           if not creds_json:
-              print("❌ ERROR: GCP_SA_KEY secret not found!")
+              print("❌ ERROR: GCP_SA_KEY or GOOGLE_API_KEY secret not found!")
               sys.exit(1)
 
           try:
@@ -60,10 +60,10 @@ jobs:
           drive_service = build('drive', 'v3', credentials=credentials)
           print("✓ Google Drive API authenticated")
 
-          # Folder ID from GitHub secret
-          folder_id = os.environ.get('DRIVE_FOLDER_ID')
+          # Folder ID from GitHub secret (try all variants)
+          folder_id = os.environ.get('DRIVE_FOLDER_ID') or os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
           if not folder_id:
-              print("❌ ERROR: DRIVE_FOLDER_ID secret not found!")
+              print("❌ ERROR: DRIVE_FOLDER_ID or GOOGLE_DRIVE_FOLDER_ID secret not found!")
               sys.exit(1)
           print(f"✓ Target Folder ID: {folder_id}")
 
@@ -193,7 +193,9 @@ jobs:
           echo "✅ Script completed"
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
 
       - name: Configure Git
         run: |
