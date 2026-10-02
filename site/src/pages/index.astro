@@ -4,6 +4,8 @@ import Base from '../layouts/Base.astro';
 import { SITE } from '../data/site';
 import { packages, sizes, extras } from '../data/menu';
 import logo from '../assets/logo.webp';
+import pricelist from '../assets/pricelist.png';
+import flierCar from '../assets/flier-car.jpg';
 import hero from '../assets/ig_08.jpg';
 import g1 from '../assets/ig_04.jpg';
 import g2 from '../assets/ig_05.jpg';
@@ -27,8 +29,8 @@ const steps = [
 ];
 ---
 <Base
-  title="Mobile Car Detailing in Montgomery, AL | Mirror Finish Mobile Detailing"
-  description="Mirror Finish Mobile Detailing comes to you in Montgomery, Wetumpka, Prattville, Pike Road, Millbrook, Cecil, Hayneville and White Hall, AL. Book online or call/text 334-652-2601."
+  title="Mirror Finish Mobile Detailing MGM | Mobile Car Wash & Detailing in Montgomery, AL"
+  description="Mobile car wash & detailing in Montgomery and the River Region. Mirror Finish Mobile Detailing delivers expert interior cleaning and exterior shine to your door. Book online or call/text 334-652-2601."
 >
   <header class="top">
     <div class="wrap bar">
@@ -87,6 +89,10 @@ const steps = [
             {sizes.map((r) => (<tr><th scope="row">{r.name}</th><td>{r.price}</td></tr>))}
           </tbody>
         </table>
+        <figure class="price-fig">
+          <Image src={pricelist} alt="Mirror Finish Mobile Detailing price list: Deluxe $60, Exterior $40, Interior $40, with vehicle size add-ons" widths={[360, 503]} sizes="(min-width: 860px) 400px, 100%" loading="lazy" />
+          <figcaption class="small">Our current price list. <a href={SITE.bookingUrl}>Book on Square</a></figcaption>
+        </figure>
       </div>
     </section>
 
@@ -137,7 +143,8 @@ const steps = [
     </section>
 
     <section class="final">
-      <div class="wrap">
+      <Image class="final-bg" src={flierCar} alt="" widths={[480, 800]} sizes="100vw" loading="lazy" />
+      <div class="wrap final-inner">
         <h2>Ready for a spotless ride?</h2>
         <p class="cta">
           <a class="btn" href={SITE.bookingUrl}>Book now</a>
@@ -149,7 +156,7 @@ const steps = [
 
   <footer>
     <div class="wrap">
-      <p>© {new Date().getFullYear()} {SITE.name} · Montgomery, AL · <a href={SITE.phoneTel}>{SITE.phoneDisplay}</a></p>
+      <p>© {new Date().getFullYear()} {SITE.name} (MGM) · Montgomery, AL · <a href={SITE.phoneTel}>{SITE.phoneDisplay}</a></p>
     </div>
   </footer>
 
@@ -181,6 +188,8 @@ const steps = [
     .card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
     .alt .card { background: var(--bg); }
     .card h3 { margin-bottom: .2em; }
+    .price-fig { margin: 36px 0 0; max-width: 400px; }
+    .price-fig img { border-radius: var(--radius); border: 1px solid var(--line); }
     .feat { margin: 0 0 18px; padding-left: 1.1em; color: var(--muted); }
     .price { font-size: 2rem; font-weight: 800; color: var(--gold-hi); margin: 0 0 .4em; }
     .sub { margin-top: 36px; }
@@ -194,7 +203,9 @@ const steps = [
     .grid img { border-radius: var(--radius); aspect-ratio: 1; object-fit: cover; width: 100%; }
     .chips { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
     .chips li { border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 999px; }
-    .final { text-align: center; background: var(--surface); }
+    .final { text-align: center; background: var(--surface); position: relative; overflow: hidden; }
+    .final-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .28; }
+    .final-inner { position: relative; }
     .final .cta { justify-content: center; }
     footer { padding: 28px 0 96px; color: var(--muted); border-top: 1px solid var(--line); text-align: center; }
     .sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; gap: 10px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(11,11,12,.96); border-top: 1px solid var(--line); }

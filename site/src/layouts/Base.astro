@@ -8,6 +8,7 @@ const ld = {
   '@context': 'https://schema.org',
   '@type': 'AutoDetailing',
   name: SITE.name,
+  alternateName: ['Mirror Finish Mobile Detailing MGM', 'MFMD MGM'],
   description,
   telephone: '+1-334-652-2601',
   url: Astro.site?.href,
@@ -26,6 +27,7 @@ const ld = {
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mirror Finish Mobile Detailing MGM" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />

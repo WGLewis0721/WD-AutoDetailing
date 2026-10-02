@@ -14,12 +14,8 @@ export const sizes: Row[] = [
 ];
 
 export const extras: Row[] = [
-  { name: 'Paint & Glass Cleanse', price: '$40' },
-  { name: 'Pet Hair & Stain Removal', price: '$50' },
-  { name: 'Bodily Fluid Cleanup', price: '$40' },
-  { name: 'Headlight Restoration', price: '$50', note: 'about 1 hour' },
-  { name: '6-Point Inspection', price: '$20' },
-  { name: 'Steam Upholstery', price: '$10' },
-  { name: 'Spot Stain Treatment', price: '$10' },
-  { name: 'Clear Coat Restoration', price: 'Price on request' },
+  { name: 'Shampoo & Steam', price: '$75', note: 'deep clean seats, carpets and upholstery' },
+  { name: 'Interior Deep Treatment', price: '$75', note: 'stain, odor and pet hair removal' },
+  { name: 'Paint & Glass Decontamination', price: '$40', note: 'iron removal and clay bar' },
+  { name: 'Headlight Restoration', price: '$100' },
 ];
