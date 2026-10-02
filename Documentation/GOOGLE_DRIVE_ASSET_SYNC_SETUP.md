@@ -99,6 +99,11 @@ The `.github/workflows/sync-google-drive-assets.yml` workflow runs every hour an
 2. Downloads them to the `Assets/` folder (organized by type)
 3. Commits and pushes changes to GitHub
 
+The sync logic lives in [`scripts/sync_drive.py`](../scripts/sync_drive.py). It recurses
+into subfolders, prints debug logs of every folder it searches for/finds (set
+`SYNC_DEBUG=1`, already enabled in the workflow, for the most detail), and keeps
+empty Drive folders tracked in git via a `.gitkeep` placeholder.
+
 ---
 
 ## Part 4: Verify Setup
@@ -118,7 +123,9 @@ The `.github/workflows/sync-google-drive-assets.yml` workflow runs every hour an
 **Files not syncing:**
 - Verify folder ID matches `GOOGLE_DRIVE_FOLDER_ID`
 - Ensure files are in `Assets/` subfolder in Google Drive
-- Check workflow logs in Actions tab
+- Check workflow logs in Actions tab - the script logs every folder it searches
+  for and what it actually finds (prefixed with `[debug]`), which makes it easy
+  to spot typos or missing folders
 
 **Wrong file organization:**
 - Verify folder names in Google Drive match expected types
