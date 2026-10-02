@@ -1,16 +1,16 @@
 export interface Row { name: string; price: string; note?: string }
 
 export const packages = [
-  { name: 'Deluxe', price: '$60', blurb: 'Interior and exterior together, the full detail.' },
-  { name: 'Exterior', price: '$40', blurb: 'Exterior-only detail for a mirror shine.' },
-  { name: 'Interior', price: '$40', blurb: 'Interior-only detail for a fresh cabin.' },
+  { name: 'Deluxe', price: '$60', features: ['Complete interior detail', 'Complete exterior detail'] },
+  { name: 'Exterior', price: '$40', features: ['Deluxe exterior detail', 'Restore exterior plastics', 'Protective spray wax'] },
+  { name: 'Interior', price: '$40', features: ['Deluxe interior detail', 'Clean all hard surfaces', 'Vacuum and shampoo upholstery'] },
 ] as const;
 
 export const sizes: Row[] = [
-  { name: 'Sedan / Coupe', price: '+$0' },
-  { name: 'Hatchback / Crossover / Small SUV / Truck', price: '+$20' },
-  { name: 'Standard SUV / Truck', price: '+$40' },
-  { name: 'Minivan / Van', price: '+$60' },
+  { name: 'Sedan & Coupe', price: '+$0' },
+  { name: 'Small SUV or Truck', price: '+$20' },
+  { name: 'Standard SUV or Truck', price: '+$40' },
+  { name: 'Van / 3-Row SUV / HD Truck', price: '+$60' },
 ];
 
 export const extras: Row[] = [
