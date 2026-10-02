@@ -4,7 +4,7 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --host",
     "build": "npm run check:tokens && astro build",
     "preview": "astro preview",
     "check": "astro check",
