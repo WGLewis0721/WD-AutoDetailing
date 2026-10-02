@@ -5,6 +5,9 @@ on:
     - cron: '* * * * *'  # Every minute
   workflow_dispatch:  # Manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   sync-assets:
     runs-on: ubuntu-latest
