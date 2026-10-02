@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mirror Finish - Booking flow wireframe (grayscale)</title><link rel="stylesheet" href="wire.css">
+<style>.side{width:300px;border-left:1px dashed var(--g4);padding:14px}.main{flex:1;padding:16px}.stepper{display:flex;gap:6px;padding:10px 16px;background:var(--g1);font-size:12px}.stepper b{background:var(--g6);color:#fff;padding:2px 8px;border-radius:10px}.stepper span{padding:2px 8px;border:1px solid var(--g4);border-radius:10px}
+.fld{border:1px solid var(--g4);padding:9px;margin:6px 0;background:#fff;color:var(--g4)}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;text-align:center}.cal i{border:1px solid var(--g3);padding:5px 0;font-style:normal}.cal i.on{background:var(--g6);color:#fff}
+.slots{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.sel{outline:2px solid var(--g6)}.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}</style></head><body>
+<h1>Booking flow - /book (grayscale wireframe)</h1>
+<p class="meta">Five steps, one screen, sticky live summary. The 3D vehicle sits beside the steps on desktop and above them on mobile. Gold/black/white applied later (60/30/10).</p>
+
+<h2>Desktop 1440 - Step 1 (Vehicle) and Step 2 (Build)</h2>
+<div class="board">
+<div class="frame desk"><span class="label">Step 1 - Vehicle</span>
+<div class="nav"><div class="logo">LOGO</div><span class="sp"></span><span class="link">Call / Text</span></div>
+<div class="stepper"><b>1 Vehicle</b><span>2 Build</span><span>3 When</span><span>4 Details</span><span>5 Deposit</span></div>
+<div class="row"><div class="main"><div class="h">What are we detailing?</div>
+<div class="row"><div class="fld col">Year</div><div class="fld col">Make</div><div class="fld col">Model</div></div>
+<div class="line s"></div><span class="link">Not listed? Pick a body style</span>
+<div class="gap"><span class="btn">Continue</span></div></div>
+<div class="side"><div class="img" style="height:150px">3D VEHICLE (rotates)</div><div class="card gap"><b>Detected size</b>Standard SUV or Truck <b style="display:inline">+$40</b></div><div class="card gap"><b>Your build</b><div class="line"></div><div class="line s"></div></div></div></div></div>
+
+<div class="frame desk"><span class="label">Step 2 - Build</span>
+<div class="nav"><div class="logo">LOGO</div><span class="sp"></span><span class="link">Call / Text</span></div>
+<div class="stepper"><span>1 Vehicle</span><b>2 Build</b><span>3 When</span><span>4 Details</span><span>5 Deposit</span></div>
+<div class="row"><div class="main"><div class="h">Pick a package</div>
+<div class="row"><div class="card col sel"><b>Deluxe $60</b>Most popular<div class="line"></div></div><div class="card col"><b>Exterior $40</b><div class="line"></div></div><div class="card col"><b>Interior $40</b><div class="line"></div></div></div>
+<div class="h gap">Add to it</div>
+<div class="grid4"><div class="card sel"><b>Shampoo &amp; Steam +$75</b>1 line</div><div class="card"><b>Interior Deep Treatment +$75</b>1 line</div><div class="card"><b>Paint &amp; Glass Decon +$40</b>1 line</div><div class="card"><b>Headlight Restoration +$100</b>1 line</div></div>
+<div class="gap"><span class="btn">Continue</span></div></div>
+<div class="side"><div class="img" style="height:120px">3D VEHICLE</div><div class="card gap"><b>Live total</b>Package $60 / Size +$40 / Add-ons $75<div class="price">$175</div>Deposit today (20%) <b style="display:inline">$35</b> / Due on site $140</div><div class="chip">Showroom readiness 72%</div></div></div></div>
+</div>
+
+<h2 style="margin-top:50px">Desktop - Steps 3-5 and Confirmation</h2>
+<div class="board">
+<div class="frame desk" style="width:480px"><span class="label">Step 3 - When</span><div class="stepper"><span>1</span><span>2</span><b>3 When</b><span>4</span><span>5</span></div>
+<div class="main"><div class="h">Pick a day and time</div><div class="cal"><i>M</i><i>T</i><i>W</i><i>T</i><i>F</i><i>S</i><i>S</i><i>6</i><i>7</i><i class="on">8</i><i>9</i><i>10</i><i>11</i><i>12</i></div>
+<div class="slots"><span class="chip">9:00</span><span class="chip sel">11:00</span><span class="chip">1:00</span><span class="chip">3:00</span></div><div class="line s gap"></div><div>Duration about 2 hr (from your build)</div></div></div>
+<div class="frame desk" style="width:480px"><span class="label">Step 4 - Details</span><div class="stepper"><span>1</span><span>2</span><span>3</span><b>4 Details</b><span>5</span></div>
+<div class="main"><div class="h">Where and who?</div><div class="fld">Full name</div><div class="fld">Mobile phone</div><div class="fld">Email (for your Square confirmation)</div><div class="fld">Service address</div><div class="gap"><span class="btn">Review</span></div></div></div>
+<div class="frame desk" style="width:480px"><span class="label">Step 5 - Deposit</span><div class="stepper"><span>1</span><span>2</span><span>3</span><span>4</span><b>5 Deposit</b></div>
+<div class="main"><div class="h">Review and book</div><table class="tbl"><tr><td>Vehicle</td><td>SUV</td></tr><tr><td>Build</td><td>Deluxe + 1</td></tr><tr><td>When</td><td>Oct 8, 11:00</td></tr><tr><td>Where</td><td>address</td></tr><tr><td>Total</td><td>$175</td></tr></table><div class="gap"><span class="chip">[ ] I agree to the terms</span></div><div class="gap"><span class="btn">Pay $35 deposit to book</span></div><div class="line s gap"></div>Secure checkout by Square</div></div>
+<div class="frame desk" style="width:480px"><span class="label">Confirmation - Detail Pass</span><div class="main"><div class="h">You're booked.</div><div class="card"><b>DETAIL PASS</b><div class="img" style="height:60px">PASS ART</div>Vehicle / Build / Date / Address<div class="line"></div></div>
+<div class="gap"><span class="btn sm">Add to calendar</span> <span class="btn alt sm">Share my build</span></div><div class="card gap"><b>Reward</b>Your next-visit offer / referral code</div><div class="card gap"><b>While you wait</b>Care tip for your vehicle</div></div></div>
+</div>
+
+<h2 style="margin-top:50px">Mobile 390 - same five steps</h2>
+<div class="board">
+<div class="frame mob"><span class="label">Vehicle</span><div class="nav"><div class="logo">LOGO</div></div><div class="stepper"><b>1</b><span>2</span><span>3</span><span>4</span><span>5</span></div><div class="sec"><div class="img" style="height:110px">3D VEHICLE</div><div class="h gap">What are we detailing?</div><div class="fld">Year</div><div class="fld">Make</div><div class="fld">Model</div><div class="card"><b>Standard SUV +$40</b></div></div><div class="bar"><span class="btn">Continue</span></div></div>
+<div class="frame mob"><span class="label">Build</span><div class="stepper"><span>1</span><b>2</b><span>3</span><span>4</span><span>5</span></div><div class="sec"><div class="img" style="height:70px">3D VEHICLE (small)</div><div class="card sel gap"><b>Deluxe $60</b></div><div class="card gap"><b>Exterior $40</b></div><div class="card gap"><b>Interior $40</b></div><div class="grid4 gap"><div class="card">Add-on</div><div class="card sel">Add-on</div></div></div><div class="bar"><span><b>$175</b> / $35 today</span><span class="btn">Next</span></div></div>
+<div class="frame mob"><span class="label">When</span><div class="stepper"><span>1</span><span>2</span><b>3</b><span>4</span><span>5</span></div><div class="sec"><div class="cal"><i>M</i><i>T</i><i>W</i><i>T</i><i>F</i><i>S</i><i>S</i><i>6</i><i class="on">7</i><i>8</i></div><div class="slots"><span class="chip">9:00</span><span class="chip sel">11:00</span><span class="chip">1:00</span></div></div><div class="bar"><span><b>$175</b></span><span class="btn">Next</span></div></div>
+<div class="frame mob"><span class="label">Details + Deposit</span><div class="stepper"><span>1</span><span>2</span><span>3</span><b>4</b><b>5</b></div><div class="sec"><div class="fld">Name</div><div class="fld">Phone</div><div class="fld">Email</div><div class="fld">Address</div></div><div class="sec"><table class="tbl"><tr><td>Total</td><td>$175</td></tr><tr><td>Deposit</td><td>$35</td></tr></table></div><div class="bar"><span class="btn">Pay $35 deposit</span></div></div>
+</div>
+
+<div class="notes"><h2>Friction rules</h2><ul>
+<li>Vehicle first: size and price appear the moment the model is picked, so nothing is a surprise later.</li>
+<li>One decision per screen, sticky live total and deposit always visible, Continue button always in the thumb zone.</li>
+<li>Resume anywhere (state saved on the device). Back never loses a choice.</li>
+<li>Only name, phone, email and address are asked. Email is needed because Square sends the booking confirmation to the customer.</li>
+<li>Pay button carries the amount. After Square checkout the Detail Pass appears only when the payment is confirmed.</li>
+<li>Out-of-flow exits: text us, save my build, see recent work.</li></ul></div>
+</body></html>
