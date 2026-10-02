@@ -2,7 +2,7 @@
 
 Public website for **Mirror Finish Mobile Detailing** (Montgomery, AL), built by Gray Matter.
 
-- **Stack:** Astro (static) + TypeScript, hosted as an assets-only Cloudflare Worker, deployed by GitHub Actions.
+- **Stack:** Astro (static) + TypeScript, hosted on GitHub Pages and deployed by GitHub Actions. The custom domain is pointed at GitHub Pages from Cloudflare DNS. A small Cloudflare Worker for booking/payment API calls is planned for Round 2.
 - **Booking:** stays on the existing Square Appointments site (`https://mirror-finish-mobile-detailing.square.site/`). No custom backend, no AWS.
 - **Contact:** call/text 334-652-2601.
 

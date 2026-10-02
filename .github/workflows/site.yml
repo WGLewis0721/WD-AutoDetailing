@@ -19,6 +19,8 @@ jobs:
     defaults:
       run:
         working-directory: site
+    env:
+      SITE_URL: https://wglewis0721.github.io/WD-AutoDetailing
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,74 +30,35 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
       - run: npx astro check
-      - run: npm run build
       - run: npm test
+      - run: npm run build
       - name: Book buttons and contact links
         run: |
           test "$(grep -o 'href="/book' dist/index.html | wc -l)" -ge 5
           grep -q 'mirror-finish-mobile-detailing.square.site' dist/index.html
           grep -q 'tel:+13346522601' dist/index.html
           ! grep -qi 'localhost' dist/index.html
-      - uses: actions/upload-artifact@v4
+      - name: Make a copy that works from any URL path
+        run: node scripts/make-relative.mjs dist-relative
+      - uses: actions/upload-pages-artifact@v3
         with:
-          name: dist
-          path: site/dist
-          retention-days: 7
+          path: site/dist-relative
 
-  preview:
-    if: github.ref != 'refs/heads/main'
-    needs: quality
-    runs-on: ubuntu-latest
-    env:
-      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: site/dist
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Preview needs Cloudflare secrets
-        if: env.CF_TOKEN == '' || env.CF_ACCOUNT == ''
-        run: |
-          echo "### Preview not deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "Add repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to get a preview URL. The built site is attached to this run as the 'dist' artifact." >> "$GITHUB_STEP_SUMMARY"
-      - name: Deploy preview worker
-        id: preview
-        if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: site
-          command: deploy --name mirror-finish-preview
-      - name: Show preview URL
-        if: steps.preview.outputs.deployment-url != ''
-        run: |
-          echo "### Preview ready" >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.preview.outputs.deployment-url }}" >> "$GITHUB_STEP_SUMMARY"
-
+  # GitHub Pages hosts the static site. A custom domain is pointed at it from Cloudflare DNS.
+  # One-time repo setup: Settings > Pages > Source = "GitHub Actions".
+  # Branch previews also need the branch allowed under Settings > Environments > github-pages.
   deploy:
-    if: github.ref == 'refs/heads/main'
     needs: quality
     runs-on: ubuntu-latest
-    environment: production
+    continue-on-error: ${{ github.ref != 'refs/heads/main' }}
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: site/dist
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: site
-          command: deploy
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Show URL
+        run: echo "Site URL ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
