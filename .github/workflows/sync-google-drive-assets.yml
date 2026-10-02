@@ -22,13 +22,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
+          pip install --upgrade google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-      - name: Create sync script with debug logging
+      - name: Create and run sync script
         run: |
-          echo "Creating sync_drive.py script..."
-          cat > sync_drive.py << 'EOF'
+          python << 'SCRIPT'
           import json
           import os
           import sys
@@ -37,177 +35,167 @@ jobs:
           from googleapiclient.http import MediaIoBaseDownload
           import io
 
-          print("=" * 60)
-          print("🔍 DEBUG: Starting Google Drive Asset Sync")
-          print("=" * 60)
+          print("=" * 70)
+          print("🔍 GOOGLE DRIVE ASSET SYNC - START")
+          print("=" * 70)
 
-          # Service account credentials from GitHub secret (try all variants)
+          # Load credentials
           creds_json = os.environ.get('GCP_SA_KEY') or os.environ.get('GOOGLE_API_KEY')
           if not creds_json:
-              print("❌ ERROR: GCP_SA_KEY or GOOGLE_API_KEY secret not found!")
+              print("❌ No credentials found (GCP_SA_KEY or GOOGLE_API_KEY)")
               sys.exit(1)
 
           try:
               creds_dict = json.loads(creds_json)
-              service_account_email = creds_dict.get('client_email', 'UNKNOWN')
-              print(f"✓ Service Account: {service_account_email}")
-          except json.JSONDecodeError as e:
-              print(f"❌ ERROR: Invalid JSON in GOOGLE_API_KEY: {str(e)}")
+              email = creds_dict.get('client_email', 'UNKNOWN')
+              print(f"✓ Service Account: {email}")
+          except Exception as e:
+              print(f"❌ Invalid credentials: {e}")
               sys.exit(1)
 
-          # Authenticate
-          credentials = Credentials.from_service_account_info(creds_dict, scopes=['https://www.googleapis.com/auth/drive'])
-          drive_service = build('drive', 'v3', credentials=credentials)
-          print("✓ Google Drive API authenticated")
-
-          # Folder ID from GitHub secret (try all variants)
-          folder_id = os.environ.get('DRIVE_FOLDER_ID') or os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
-          if not folder_id:
-              print("❌ ERROR: DRIVE_FOLDER_ID or GOOGLE_DRIVE_FOLDER_ID secret not found!")
+          # Authenticate to Google Drive
+          try:
+              credentials = Credentials.from_service_account_info(
+                  creds_dict,
+                  scopes=['https://www.googleapis.com/auth/drive']
+              )
+              drive = build('drive', 'v3', credentials=credentials)
+              print("✓ Authenticated with Google Drive API")
+          except Exception as e:
+              print(f"❌ Authentication failed: {e}")
               sys.exit(1)
-          print(f"✓ Target Folder ID: {folder_id}")
 
-          # Asset subfolders to sync
-          asset_types = ['Images', 'Icons', 'Photos', 'Videos', 'Logos', 'UI-Components']
-          files_synced = 0
+          # Get root folder ID
+          root_folder_id = os.environ.get('DRIVE_FOLDER_ID') or os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+          if not root_folder_id:
+              print("❌ No folder ID found (DRIVE_FOLDER_ID or GOOGLE_DRIVE_FOLDER_ID)")
+              sys.exit(1)
 
-          def get_folder_id_by_name(parent_id, folder_name):
-              """Get folder ID by name within parent folder"""
-              query = f"'{parent_id}' in parents and name='{folder_name}' and trashed=false and mimeType='application/vnd.google-apps.folder'"
-              print(f"\n  📋 Query: {query}")
+          print(f"✓ Root Folder ID: {root_folder_id}")
+
+          # Helper function to find folder by name
+          def find_folder(parent_id, folder_name):
               try:
-                  results = drive_service.files().list(
-                      q=query,
+                  results = drive.files().list(
+                      q=f"'{parent_id}' in parents and name='{folder_name}' and trashed=false and mimeType='application/vnd.google-apps.folder'",
                       spaces='drive',
                       fields='files(id, name)',
                       supportsAllDrives=True,
                       includeItemsFromAllDrives=True,
-                      pageSize=10
+                      pageSize=1
                   ).execute()
-                  items = results.get('files', [])
-                  print(f"  📊 Found {len(items)} folder(s)")
-                  if items:
-                      print(f"  ✓ Folder ID: {items[0]['id']}")
-                  return items[0]['id'] if items else None
+                  files = results.get('files', [])
+                  if files:
+                      return files[0]['id']
               except Exception as e:
-                  print(f"  ❌ Error querying folder: {str(e)}")
-                  return None
+                  print(f"  ⚠️  Error finding folder '{folder_name}': {e}")
+              return None
 
-          def sync_folder(parent_id, local_path, folder_type):
-              """Sync files from Google Drive folder to local folder"""
-              global files_synced
-
-              if not os.path.exists(local_path):
-                  os.makedirs(local_path)
-
-              # Get all files in folder
-              query = f"'{parent_id}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'"
-              print(f"  📋 File Query: {query}")
+          # Helper function to download files from folder
+          def sync_folder(folder_id, output_dir, folder_name):
               try:
-                  results = drive_service.files().list(
-                      q=query,
+                  os.makedirs(output_dir, exist_ok=True)
+
+                  results = drive.files().list(
+                      q=f"'{folder_id}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'",
                       spaces='drive',
-                      fields='files(id, name, modifiedTime, size)',
+                      fields='files(id, name, size)',
                       supportsAllDrives=True,
                       includeItemsFromAllDrives=True,
                       pageSize=100
                   ).execute()
 
-                  items = results.get('files', [])
-                  print(f"  📊 Found {len(items)} file(s)")
+                  files = results.get('files', [])
+                  print(f"  📊 Found {len(files)} file(s) in {folder_name}")
 
-                  if not items:
-                      print(f"  ℹ️  No files in {folder_type}")
-                      return
-
-                  for item in items:
+                  downloaded = 0
+                  for file in files:
                       try:
-                          file_path = os.path.join(local_path, item['name'])
-                          print(f"    ↓ Downloading: {item['name']} ({item.get('size', 'unknown')} bytes)")
-
-                          # Download file
-                          request = drive_service.files().get_media(fileId=item['id'])
-                          file_handler = io.BytesIO()
-                          downloader = MediaIoBaseDownload(file_handler, request)
+                          file_path = os.path.join(output_dir, file['name'])
+                          request = drive.files().get_media(fileId=file['id'])
+                          fh = io.BytesIO()
+                          downloader = MediaIoBaseDownload(fh, request)
 
                           done = False
                           while not done:
                               status, done = downloader.next_chunk()
 
-                          # Write to disk
                           with open(file_path, 'wb') as f:
-                              f.write(file_handler.getvalue())
+                              f.write(fh.getvalue())
 
-                          files_synced += 1
-                          print(f"    ✓ Saved: {file_path}")
-
+                          print(f"    ✓ {file['name']} ({file.get('size', '?')} bytes)")
+                          downloaded += 1
                       except Exception as e:
-                          print(f"    ❌ Error syncing {item['name']}: {str(e)}")
+                          print(f"    ❌ Failed to download {file['name']}: {e}")
+
+                  return downloaded
               except Exception as e:
-                  print(f"  ❌ Error listing files: {str(e)}")
+                  print(f"  ❌ Error syncing folder: {e}")
+                  return 0
 
-          # Ensure Assets folder exists locally
-          print("\n📂 Creating local Assets folder...")
-          if not os.path.exists('Assets'):
-              os.makedirs('Assets')
-          print("✓ Local Assets folder ready")
+          # Main sync process
+          print("\n📂 Finding Assets folder...")
+          assets_id = find_folder(root_folder_id, 'Assets')
 
-          # Get Assets folder ID from Gray Matter LLC
-          print(f"\n🔍 Looking for 'Assets' folder in parent {folder_id}...")
-          assets_folder_id = get_folder_id_by_name(folder_id, 'Assets')
-
-          if not assets_folder_id:
-              print("❌ ERROR: Assets folder not found!")
-              print("   - Verify Gray Matter LLC folder is shared with service account")
-              print("   - Verify Assets subfolder exists")
+          if not assets_id:
+              print("❌ Assets folder not found!")
+              print("   Make sure:")
+              print("   - The 'Assets' folder exists in Gray Matter LLC")
+              print("   - The service account has access")
               sys.exit(1)
 
-          print(f"\n✅ Found Assets folder: {assets_folder_id}\n")
+          print(f"✓ Assets folder ID: {assets_id}")
 
           # Sync each asset type
-          print("=" * 60)
-          print("🔄 Syncing Asset Types")
-          print("=" * 60)
+          print("\n🔄 Syncing asset types:")
+          asset_types = ['Images', 'Icons', 'Photos', 'Videos', 'Logos', 'UI-Components']
+          total_files = 0
+
           for asset_type in asset_types:
-              print(f"\n📦 Processing {asset_type}...")
-              type_folder_id = get_folder_id_by_name(assets_folder_id, asset_type)
+              print(f"\n📦 {asset_type}:")
+              type_id = find_folder(assets_id, asset_type)
 
-              if type_folder_id:
-                  print(f"  ✓ Found {asset_type} folder")
-                  local_path = f'Assets/{asset_type}'
-                  sync_folder(type_folder_id, local_path, asset_type)
-              else:
-                  print(f"  ⚠️  Skipping {asset_type} - folder not found")
+              if not type_id:
+                  print(f"  ⚠️  Folder not found")
+                  continue
 
-          print("\n" + "=" * 60)
-          print(f"✅ Sync complete! {files_synced} files synced.")
-          print("=" * 60)
-          EOF
+              output = f'Assets/{asset_type}'
+              count = sync_folder(type_id, output, asset_type)
+              total_files += count
 
-          echo "✅ Script created successfully"
-          echo "=================================="
-          echo "🚀 Running sync script..."
-          echo "=================================="
-          python -u sync_drive.py || { echo "❌ Script failed"; exit 1; }
-          echo "=================================="
-          echo "✅ Script completed"
+          print("\n" + "=" * 70)
+          print(f"✅ SYNC COMPLETE - {total_files} files downloaded")
+          print("=" * 70)
+
+          SCRIPT
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
 
+      - name: Check for changes
+        run: |
+          echo "📊 Git status:"
+          git status
+          echo ""
+          echo "📁 Assets folder contents:"
+          find Assets -type f 2>/dev/null | head -20 || echo "  (no files found)"
+
       - name: Configure Git
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Asset Sync Bot"
 
-      - name: Commit and push changes
+      - name: Commit and push
         run: |
           if git diff --quiet; then
-            echo "No changes to commit"
+            echo "ℹ️  No changes to commit"
           else
+            echo "📝 Committing changes..."
             git add Assets/
             git commit -m "Sync assets from Google Drive [automated]"
-            git push
+            echo "🚀 Pushing to main..."
+            git push origin main
+            echo "✅ Push successful"
           fi
