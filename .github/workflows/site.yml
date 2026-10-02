@@ -1,0 +1,84 @@
+name: Site CI/CD
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['site/**', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npx astro check
+      - run: npm run build
+      - name: Book links all point to Square
+        run: |
+          test "$(grep -o 'https://mirror-finish-mobile-detailing.square.site/' dist/index.html | wc -l)" -ge 5
+          grep -q 'tel:+13346522601' dist/index.html
+          ! grep -qi 'localhost' dist/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: site/dist
+          retention-days: 7
+
+  preview:
+    if: github.ref != 'refs/heads/main'
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: site/dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Upload preview version
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: versions upload
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: quality
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: site/dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy

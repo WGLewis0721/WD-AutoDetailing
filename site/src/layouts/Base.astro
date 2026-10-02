@@ -1,0 +1,38 @@
+---
+import '../styles/tokens.css';
+import { SITE } from '../data/site';
+interface Props { title: string; description: string }
+const { title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'AutoDetailing',
+  name: SITE.name,
+  description,
+  telephone: '+1-334-652-2601',
+  url: Astro.site?.href,
+  areaServed: SITE.serviceArea.map((c) => ({ '@type': 'City', name: `${c}, ${SITE.region}` })),
+  sameAs: [SITE.bookingUrl],
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0b0b0c" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <script type="application/ld+json" set:html={JSON.stringify(ld)} />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <slot />
+  </body>
+</html>

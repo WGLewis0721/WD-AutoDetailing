@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://mirror-finish-mobile-detailing.workers.dev/sitemap-index.xml
