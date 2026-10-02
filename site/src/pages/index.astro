@@ -6,8 +6,8 @@ import Footer from '../components/Footer.astro';
 import { SITE } from '../data/site';
 import { packages, sizes, extras } from '../data/menu';
 import { fmt } from '../lib/pricing';
-import { icon, silhouette } from '../lib/icons';
-import { makes } from '../lib/vehicles';
+import { icon } from '../lib/icons';
+import { bodyStyles, makes } from '../lib/vehicles';
 import hero from '../assets/hf-hero.png';
 import paint from '../assets/hf-paint.png';
 import interior from '../assets/hf-interior.png';
@@ -39,21 +39,27 @@ const faqs = [
   ['Where do you serve?', `${SITE.serviceArea.join(', ')}, AL. Not sure if you are in range? Text ${SITE.phoneDisplay}.`],
 ];
 const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
+/* Renders of the same 3D meshes the booking tool uses, all at one scale so the size classes compare honestly. */
+const renders = import.meta.glob<{ default: ImageMetadata }>('../assets/sizes/*.png', { eager: true });
+const render = (key: string) => renders[`../assets/sizes/${key}.png`].default;
+const towns = SITE.serviceArea.join(', ').replace(/, ([^,]*)$/, ' and $1');
+const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) };
 ---
 <Base
-  title="Mirror Finish Mobile Detailing MGM | Mobile Car Wash & Detailing in Montgomery, AL"
-  description="Mobile car wash & detailing in Montgomery and the River Region. Mirror Finish Mobile Detailing delivers expert interior cleaning and exterior shine to your door. Build your detail and book online, or call/text 334-652-2601."
+  title="Mobile Car Wash & Detailing in Montgomery, AL | Mirror Finish MGM"
+  description="Mobile car detailing in Montgomery, AL and the River Region. Mirror Finish comes to your home or work: interior and exterior details from $40. See your price and book online, or text 334-652-2601."
+  schema={[faqSchema]}
 >
   <Header />
   <main id="main">
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow reveal">Mobile detailing · Montgomery, AL</p>
-          <h1 class="reveal" style="--d:80ms">A <em>mirror finish,</em><br />at your door.</h1>
+          <h1 class="reveal"><span class="eyebrow kicker">Mobile car detailing in Montgomery, AL</span>A <em>Mirror Finish,</em><br />at your door.</h1>
           <p class="lead reveal" style="--d:160ms">{SITE.tagline}. Tell us your vehicle, build your detail, and see your price before you book.</p>
           <form class="quick card reveal" style="--d:240ms" id="quick" data-book="/book" aria-label="Get an instant price">
             <p class="quick-t"><span>Get your price</span><small>Takes about a minute</small></p>
+            <div class="field"><label for="qcity">Your town</label><select id="qcity"><option value="">Select town</option>{SITE.serviceArea.map((c) => <option value={c}>{c}, {SITE.region}</option>)}</select></div>
             <div class="quick-row">
               <div class="field"><label for="qmake">Make</label><select id="qmake"><option value="">Select make</option>{makes.map((m) => <option>{m}</option>)}</select></div>
               <div class="field"><label for="qmodel">Model</label><select id="qmodel" disabled><option value="">Select model</option></select></div>
@@ -67,7 +73,7 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
           </ul>
         </div>
         <div class="hero-art reveal" style="--d:200ms">
-          <Image class="hero-img" src={hero} alt="Glossy black SUV in a bright showroom" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" />
+          <div class="hero-frame"><Image class="hero-img" src={hero} alt="Glossy black SUV with a mirror-finish detail" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" fetchpriority="high" /><span class="shine" aria-hidden="true"></span></div>
           <div class="float f1"><Fragment set:html={icon('pin', 18)} /><span>{SITE.serviceArea.length} towns served</span></div>
           <div class="float f2"><small>Deluxe detail from</small><b class="num">{fmt(packages[0].cents)}</b></div>
         </div>
@@ -82,7 +88,7 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
 
     <section id="packages" class="section">
       <div class="wrap">
-        <div class="head reveal"><p class="eyebrow">Packages</p><h2>Three ways to <em>shine</em></h2><p class="lead">Pick the detail that fits. Every package is done at your location.</p></div>
+        <div class="head reveal"><p class="eyebrow">Packages</p><h2>Three ways to <em>shine</em></h2><p class="lead">Pick the mobile detail that fits. Every package is done at your home or workplace, anywhere in the River Region.</p></div>
         <div class="pkgs">
           {packages.map((p, i) => (
             <article class={`pkg reveal ${p.id === 'deluxe' ? 'pkg--feature' : ''}`} style={`--d:${i * 90}ms`}>
@@ -98,18 +104,33 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
     </section>
 
     <section id="sizes" class="section tint">
-      <div class="wrap">
+      <div class="wrap wide">
         <div class="head reveal"><p class="eyebrow">Pricing by size</p><h2>Priced to <em>your vehicle</em></h2><p class="lead">Package prices are for a sedan or coupe. Larger vehicles add a size charge, and the booking tool works it out for you.</p></div>
-        <div class="sizes">
-          {sizes.map((s, i) => (
-            <div class="size reveal" style={`--d:${i * 70}ms`}>
-              <Fragment set:html={silhouette(s.id)} />
-              <h3>{s.name}</h3>
-              <p class="num">{s.cents ? '+' + fmt(s.cents) : 'Included'}</p>
+        <div class="fit reveal">
+          <div class="fit-form card" id="fit" data-book="/book">
+            <p class="boxt">Your vehicle</p>
+            <div class="quick-row">
+              <div class="field"><label for="fmake">Make</label><select id="fmake"><option value="">Select make</option>{makes.map((m) => <option>{m}</option>)}</select></div>
+              <div class="field"><label for="fmodel">Model</label><select id="fmodel" disabled><option value="">Select model</option></select></div>
             </div>
-          ))}
+            <p class="fit-or">Or pick a body style</p>
+            <div class="fit-chips" role="radiogroup" aria-label="Body style">
+              {bodyStyles.map((b, i) => <button type="button" class={i === 0 ? 'pick on' : 'pick'} role="radio" aria-checked={i === 0 ? 'true' : 'false'} data-style={b.id} data-model={b.model} data-size={b.size}>{b.label}</button>)}
+            </div>
+          </div>
+          <div class="fit-side">
+            <div class="fit-stage" id="fitstage">
+              {bodyStyles.map((b, i) => <Image class="fit-img" data-key={b.model} src={render(b.model)} alt={b.label + ', for example ' + b.examples} widths={[448, 896]} sizes="(min-width: 900px) 520px, 100vw" loading="lazy" hidden={i !== 0} />)}
+              <div id="fitview"></div>
+              <span class="fit-drag" id="fithint">Swipe to compare</span>
+            </div>
+            <ul class="tierbar" aria-label="Size classes and prices">
+              {sizes.map((s, i) => <li class={i === 0 ? 'on' : ''} data-size={s.id} data-name={s.name} data-price={s.cents ? '+' + fmt(s.cents) : ''}><span>{s.short}</span><b class="num">{s.cents ? '+' + fmt(s.cents) : 'Included'}</b></li>)}
+            </ul>
+            <p class="fit-res" id="fitres" aria-live="polite">Sedan &amp; Coupe: the package price as listed.</p>
+            <p class="fit-go"><a class="btn btn--dark btn--lg" id="fitgo" href="/book?style=sedan"><span>Build this detail</span><Fragment set:html={icon('arrow', 20)} /></a></p>
+          </div>
         </div>
-        <p class="reveal"><a class="btn btn--dark btn--lg" href="/book"><span>Find my exact price</span><Fragment set:html={icon('arrow', 20)} /></a></p>
       </div>
     </section>
 
@@ -156,7 +177,7 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
       <div class="wrap split split--flip">
         <Image class="split-img reveal" src={interior} alt="Clean black leather interior" widths={[360, 600]} sizes="(min-width: 900px) 480px, 100vw" loading="lazy" />
         <div>
-          <div class="head reveal"><p class="eyebrow">Service area</p><h2>Where we <em>go</em></h2><p class="lead">We detail at your home or workplace in these towns. Not on the list? Text us.</p></div>
+          <div class="head reveal"><p class="eyebrow">Service area</p><h2>Where we <em>go</em></h2><p class="lead">Mobile detailing at your home or workplace in {towns}, Alabama. Not on the list? Text us.</p></div>
           <ul class="chips reveal">{SITE.serviceArea.map((c) => <li class="chip"><Fragment set:html={icon('pin', 14)} />{c}, {SITE.region}</li>)}</ul>
         </div>
       </div>
@@ -198,10 +219,82 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         const q = new URLSearchParams();
+        const city = (document.getElementById('qcity') as HTMLSelectElement).value;
+        if (city) q.set('city', city);
         if (make.value) q.set('make', make.value);
         if (model.value) q.set('model', model.value);
         location.href = (form.dataset.book ?? '/book') + (q.toString() ? '?' + q.toString() : '');
       });
+    }
+
+    /* Size finder: the same make/model and body-style picker as the booking tool, with the 3D mesh loaded only when the section is reached. */
+    import { bodyStyles } from '../lib/vehicles';
+    import type { Viewer } from '../lib/car3d';
+    const fit = document.getElementById('fit');
+    if (fit) {
+      const fmake = document.getElementById('fmake') as HTMLSelectElement;
+      const fmodel = document.getElementById('fmodel') as HTMLSelectElement;
+      const stage = document.getElementById('fitstage')!;
+      const res = document.getElementById('fitres')!;
+      const go = document.getElementById('fitgo') as HTMLAnchorElement;
+      const book = fit.dataset.book ?? '/book';
+      let viewer: Viewer | null = null;
+      let key = 'sedan';
+      const show = (model: string, size: string, query: string) => {
+        key = model;
+        stage.querySelectorAll<HTMLElement>('.fit-img').forEach((i) => { i.hidden = i.dataset.key !== model; });
+        document.querySelectorAll<HTMLElement>('.tierbar li').forEach((li) => {
+          const on = li.dataset.size === size; li.classList.toggle('on', on);
+          if (on) res.textContent = li.dataset.price ? li.dataset.name + ': ' + li.dataset.price + ' added to any package.' : li.dataset.name + ': the package price as listed.';
+        });
+        go.href = book + '?' + query;
+        viewer?.setModel(model as never);
+      };
+      fmake.addEventListener('change', () => {
+        const list = modelsFor(fmake.value);
+        fmodel.innerHTML = '<option value="">Select model</option>' + list.map((m) => '<option>' + m.name + '</option>').join('');
+        fmodel.disabled = list.length === 0;
+      });
+      fmodel.addEventListener('change', () => {
+        const m = modelsFor(fmake.value).find((x) => x.name === fmodel.value);
+        if (!m) return;
+        fit.querySelectorAll('.pick').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-checked', 'false'); });
+        show(m.model, m.size, new URLSearchParams({ make: fmake.value, model: m.name }).toString());
+      });
+      fit.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLElement>('.pick');
+        if (!b) return;
+        fit.querySelectorAll('.pick').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+        fmake.value = ''; fmodel.innerHTML = '<option value="">Select model</option>'; fmodel.disabled = true;
+        const s = bodyStyles.find((x) => x.id === b.dataset.style)!;
+        show(s.model, s.size, 'style=' + s.id);
+      });
+      /* Touch screens skip three.js: stills swap instantly and a swipe on the stage steps through the body styles. */
+      const desktop = window.matchMedia('(min-width: 900px) and (hover: hover)').matches;
+      const hint = document.getElementById('fithint')!;
+      if (desktop) hint.textContent = 'Drag to rotate';
+      const step = (dir: number) => {
+        const picks = [...fit.querySelectorAll<HTMLElement>('.pick')];
+        const cur = picks.findIndex((p) => p.classList.contains('on'));
+        const nextPick = picks[(Math.max(cur, 0) + dir + picks.length) % picks.length];
+        nextPick.click();
+        nextPick.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      };
+      let x0 = 0, y0 = 0;
+      stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+      stage.addEventListener('touchend', (e) => {
+        if (desktop) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+      }, { passive: true });
+      const io = new IntersectionObserver(async ([en]) => {
+        if (!en.isIntersecting || !desktop) return;
+        io.disconnect();
+        const { createViewer } = await import('../lib/car3d');
+        viewer = createViewer(document.getElementById('fitview')!, { auto: false, yaw: -0.55, turntable: true, onReady: () => stage.classList.add('live') });
+        viewer.setModel(key as never);
+      }, { rootMargin: '200px' });
+      io.observe(stage);
     }
   </script>
 
@@ -216,8 +309,18 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
     .trust { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); font-weight: 600; font-size: var(--fs-sm); }
     .trust li { display: inline-flex; align-items: center; gap: var(--s2); }
     .trust .ic { color: var(--gold-deep); }
+    h1 .kicker { display: flex; font-family: var(--font); line-height: 1.4; margin-bottom: var(--s5); }
     .hero-art { position: relative; }
-    .hero-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+    .hero-frame { position: relative; overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+    .hero-frame .hero-img { border-radius: 0; box-shadow: none; animation: drift 16s ease-in-out infinite alternate; transform-origin: 60% 60%; }
+    /* The loop: a band of light crosses the paint every few seconds, like a reflection moving over a polished panel. */
+    .shine { position: absolute; inset: -20% -60%; background: linear-gradient(100deg, transparent 42%, var(--shine-soft) 47%, var(--shine) 50%, var(--shine-soft) 53%, transparent 58%); transform: translateX(-60%); animation: sweep 6.5s cubic-bezier(.4, 0, .2, 1) infinite; mix-blend-mode: screen; pointer-events: none; }
+    @keyframes sweep { 0%, 18% { transform: translateX(-60%); } 62%, 100% { transform: translateX(60%); } }
+    @keyframes drift { from { transform: scale(1); } to { transform: scale(1.07); } }
+    @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+    .float { animation: bob 4.5s ease-in-out infinite alternate; }
+    .f2 { animation-delay: -2.2s; }
+    .hero-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
     .float { position: absolute; display: flex; align-items: center; gap: var(--s2); background: var(--scrim-light); backdrop-filter: blur(10px); border: 1px solid var(--line-light); border-radius: var(--radius-pill); padding: var(--s2) var(--s4); font-weight: 700; font-size: var(--fs-sm); box-shadow: var(--shadow-sm); }
     .f1 { top: var(--s5); right: var(--s4); }
     .f2 { bottom: var(--s5); left: var(--s4); border-radius: var(--radius); flex-direction: column; align-items: flex-start; gap: 0; padding: var(--s3) var(--s4); }
@@ -240,11 +343,36 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
     .feat { list-style: none; margin: var(--s2) 0 var(--s4); padding: 0; display: grid; gap: var(--s2); color: var(--muted); }
     .feat li { display: flex; gap: var(--s3); align-items: flex-start; }
     .feat .ic { color: var(--gold-deep); margin-top: 3px; } .pkg--feature .feat .ic { color: var(--gold-hi); }
-    .sizes { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s4); margin-bottom: var(--s7); }
-    .size { background: var(--white); border: 1px solid var(--line-light); border-radius: var(--radius-lg); padding: var(--s5); display: grid; gap: var(--s2); justify-items: start; transition: border-color .3s var(--ease), transform .3s var(--ease); }
-    .size:hover { border-color: var(--black); transform: translateY(-3px); }
-    .size .sil { width: 100%; max-width: 150px; height: auto; color: var(--black); margin-bottom: var(--s3); }
-    .size h3 { margin: 0; font-size: var(--fs-md); } .size p { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+    .wide { max-width: min(1560px, 100%); }
+    .fit { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+    .fit-form { min-width: 0; overflow: hidden; }
+    /* Phones: stage first, then a one-row swipeable rail of body styles. Stills only, so it is instant. */
+    .fit-side { display: contents; }
+    .fit-stage { order: 1; } .fit-form { order: 2; } .tierbar { order: 3; } .fit-res { order: 4; } .fit-go { order: 5; margin: 0; }
+    .fit-stage { touch-action: pan-y; }
+    .fit-form { align-self: start; box-shadow: var(--shadow-sm); }
+    .boxt { font: 700 var(--fs-xs) var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: var(--s4); }
+    .fit-or { font-weight: 700; font-size: var(--fs-sm); margin: var(--s3) 0; }
+    .fit-chips { display: flex; gap: var(--s2); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; margin: 0 calc(var(--s6) * -1); padding: var(--s1) var(--s6) var(--s2); }
+    .fit-chips::-webkit-scrollbar { display: none; }
+    .fit-chips .pick { flex: none; scroll-snap-align: center; white-space: nowrap; }
+    .pick { font: inherit; font-weight: 600; font-size: var(--fs-sm); cursor: pointer; min-height: var(--tap); padding: var(--s2) var(--s3); border: 1.5px solid var(--line-light); background: var(--white); color: var(--black); border-radius: var(--radius); transition: border-color var(--t) var(--ease), background var(--t) var(--ease), box-shadow var(--t) var(--ease); }
+    .pick:hover { border-color: var(--black); }
+    .pick.on { border-color: var(--black); background: var(--ivory); box-shadow: inset 0 0 0 1px var(--black), 0 0 0 3px var(--gold); }
+    .fit-stage { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius-lg); overflow: hidden; background: radial-gradient(ellipse at 50% 38%, var(--ink-2) 0%, var(--black) 70%); box-shadow: var(--shadow); }
+    .fit-img { position: absolute; left: 6%; top: 10%; width: 88%; height: 84%; object-fit: contain; filter: brightness(1.3) contrast(1.1); }
+    .fit-img[hidden] { display: none; }
+    #fitview { position: absolute; inset: 0; cursor: grab; }
+    #fitview :global(canvas) { width: 100%; height: 100%; }
+    #fitview :global(.vfallback) { display: none; }
+    .fit-stage.live .fit-img { display: none; }
+    .fit-drag { position: absolute; top: var(--s3); right: var(--s4); color: var(--muted-on-dark); font-size: var(--fs-xs); }
+    .tierbar { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
+    .tierbar li { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--line-light); border-radius: var(--radius); background: var(--white); font-size: var(--fs-xs); color: var(--muted); transition: border-color .3s var(--ease), background .3s var(--ease), color .3s var(--ease); }
+    .tierbar b { font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1; color: var(--black); }
+    .tierbar li.on { background: var(--black); border-color: var(--black); color: var(--muted-on-dark); }
+    .tierbar li.on b { color: var(--gold-hi); }
+    .fit-res { margin: 0; font-weight: 600; }
     .split { display: grid; gap: var(--s7); align-items: center; }
     .split-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow); max-height: 560px; }
     .menu { list-style: none; padding: 0; margin: 0 0 var(--s6); display: grid; }
@@ -286,7 +414,15 @@ const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
       .hero-grid { grid-template-columns: 1.1fr .9fr; gap: var(--s8); }
       .quick-row { grid-template-columns: 1fr 1fr; }
       .pkgs { grid-template-columns: repeat(3, 1fr); gap: var(--s5); }
-      .sizes { grid-template-columns: repeat(4, 1fr); }
+      /* Desktop: the stage takes most of the screen; the picker sits beside it. */
+      .fit { grid-template-columns: minmax(21rem, 26rem) 1fr; gap: var(--s6); align-items: start; }
+      .fit-side { display: grid; gap: var(--s4); align-content: start; }
+      .fit-stage, .fit-form, .tierbar, .fit-res, .fit-go { order: 0; }
+      .fit-form { position: sticky; top: 100px; }
+      .fit-stage { aspect-ratio: auto; height: clamp(440px, 64vh, 760px); }
+      .fit-chips { display: grid; grid-template-columns: repeat(2, 1fr); overflow: visible; margin: 0; padding: 0; }
+      .fit-chips .pick { white-space: normal; }
+      .tierbar { grid-template-columns: repeat(4, 1fr); }
       .split { grid-template-columns: 1.1fr .9fr; gap: var(--s8); }
       .split--flip { grid-template-columns: .9fr 1.1fr; }
       .steps { grid-template-columns: repeat(3, 1fr); gap: var(--s7); }

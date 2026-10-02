@@ -5,3 +5,8 @@ dist/
 .DS_Store
 *.log
 dist-relative/
+
+# Google service-account keys and local client exports: never commit
+wd-autodetailing-asset-sync-*.json
+mfmd_mgm-website-assets/
+mfmd_mgm-website-assets.zip

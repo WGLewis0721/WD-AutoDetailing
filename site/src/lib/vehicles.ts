@@ -1,14 +1,16 @@
 import type { SizeId } from '../data/menu';
 
 export type Shape = 'sedan' | 'coupe' | 'hatch' | 'suv' | 'truck' | 'van';
-export interface Model { name: string; shape: Shape; size: SizeId }
+/** One 3D mesh per body style and size class, so each size reads differently on the stage. */
+export type ModelKey = 'sedan' | 'coupe' | 'hatch' | 'suv' | 'suv-standard' | 'suv-large' | 'truck-small' | 'truck' | 'truck-hd' | 'van' | 'van-cargo';
+export interface Model { name: string; shape: Shape; size: SizeId; model: ModelKey }
 
 /* Codes: S sedan, C coupe/sports, H hatchback, c compact SUV/crossover, U SUV, L 3-row SUV, P pickup, p small pickup, D heavy-duty pickup, M minivan, V full van. */
-const CODE: Record<string, { shape: Shape; size: SizeId }> = {
-  S: { shape: 'sedan', size: 'sedan' }, C: { shape: 'coupe', size: 'sedan' }, H: { shape: 'hatch', size: 'small' },
-  c: { shape: 'suv', size: 'small' }, U: { shape: 'suv', size: 'standard' }, L: { shape: 'suv', size: 'large' },
-  P: { shape: 'truck', size: 'standard' }, p: { shape: 'truck', size: 'small' }, D: { shape: 'truck', size: 'large' },
-  M: { shape: 'van', size: 'large' }, V: { shape: 'van', size: 'large' },
+const CODE: Record<string, { shape: Shape; size: SizeId; model: ModelKey }> = {
+  S: { shape: 'sedan', size: 'sedan', model: 'sedan' }, C: { shape: 'coupe', size: 'sedan', model: 'coupe' }, H: { shape: 'hatch', size: 'small', model: 'hatch' },
+  c: { shape: 'suv', size: 'small', model: 'suv' }, U: { shape: 'suv', size: 'standard', model: 'suv-standard' }, L: { shape: 'suv', size: 'large', model: 'suv-large' },
+  P: { shape: 'truck', size: 'standard', model: 'truck' }, p: { shape: 'truck', size: 'small', model: 'truck-small' }, D: { shape: 'truck', size: 'large', model: 'truck-hd' },
+  M: { shape: 'van', size: 'large', model: 'van' }, V: { shape: 'van', size: 'large', model: 'van-cargo' },
 };
 
 const RAW: Record<string, string> = {
@@ -55,22 +57,25 @@ export function modelsFor(make: string): Model[] {
   return raw.split(',').map((pair) => {
     const i = pair.lastIndexOf(':');
     const code = CODE[pair.slice(i + 1)];
-    return { name: pair.slice(0, i), shape: code.shape, size: code.size };
+    return { name: pair.slice(0, i), shape: code.shape, size: code.size, model: code.model };
   });
 }
 
 export const years: number[] = Array.from({ length: 2027 - 1999 }, (_, i) => 2027 - i);
 
-/** Fallback when a vehicle is not listed: customer picks a body style. */
-export const bodyStyles: { id: string; label: string; shape: Shape; size: SizeId }[] = [
-  { id: 'sedan', label: 'Sedan', shape: 'sedan', size: 'sedan' },
-  { id: 'coupe', label: 'Coupe', shape: 'coupe', size: 'sedan' },
-  { id: 'hatch', label: 'Hatchback', shape: 'hatch', size: 'small' },
-  { id: 'compact-suv', label: 'Small SUV / Crossover', shape: 'suv', size: 'small' },
-  { id: 'suv', label: 'Standard SUV', shape: 'suv', size: 'standard' },
-  { id: 'three-row', label: '3-Row SUV', shape: 'suv', size: 'large' },
-  { id: 'small-truck', label: 'Small Truck', shape: 'truck', size: 'small' },
-  { id: 'truck', label: 'Standard Truck', shape: 'truck', size: 'standard' },
-  { id: 'hd-truck', label: 'HD Truck', shape: 'truck', size: 'large' },
-  { id: 'van', label: 'Van / Minivan', shape: 'van', size: 'large' },
+/** Fallback when a vehicle is not listed: customer picks a body style. `length` is a typical overall length in metres, used to scale the 3D mesh. */
+export const bodyStyles: { id: string; label: string; shape: Shape; size: SizeId; model: ModelKey; length: number; examples: string }[] = [
+  { id: 'sedan', label: 'Sedan', shape: 'sedan', size: 'sedan', model: 'sedan', length: 4.9, examples: 'Camry, Accord, Altima' },
+  { id: 'coupe', label: 'Coupe', shape: 'coupe', size: 'sedan', model: 'coupe', length: 4.7, examples: 'Mustang, Camaro, Challenger' },
+  { id: 'hatch', label: 'Hatchback', shape: 'hatch', size: 'small', model: 'hatch', length: 4.3, examples: 'Golf, Prius, Soul' },
+  { id: 'compact-suv', label: 'Small SUV / Crossover', shape: 'suv', size: 'small', model: 'suv', length: 4.6, examples: 'RAV4, CR-V, Equinox' },
+  { id: 'small-truck', label: 'Small Truck', shape: 'truck', size: 'small', model: 'truck-small', length: 5.4, examples: 'Tacoma, Ranger, Colorado' },
+  { id: 'suv', label: 'Standard SUV', shape: 'suv', size: 'standard', model: 'suv-standard', length: 4.9, examples: 'Grand Cherokee, 4Runner, Edge' },
+  { id: 'truck', label: 'Standard Truck', shape: 'truck', size: 'standard', model: 'truck', length: 5.9, examples: 'F-150, Silverado 1500, Ram 1500' },
+  { id: 'three-row', label: '3-Row SUV', shape: 'suv', size: 'large', model: 'suv-large', length: 5.7, examples: 'Suburban, Tahoe, Expedition' },
+  { id: 'hd-truck', label: 'HD Truck', shape: 'truck', size: 'large', model: 'truck-hd', length: 6.7, examples: 'F-250, Silverado 2500HD, Ram 2500' },
+  { id: 'van', label: 'Minivan', shape: 'van', size: 'large', model: 'van', length: 5.2, examples: 'Sienna, Odyssey, Pacifica' },
+  { id: 'cargo-van', label: 'Full-Size Van', shape: 'van', size: 'large', model: 'van-cargo', length: 6.0, examples: 'Sprinter, Transit, ProMaster' },
 ];
+
+export const modelLength = (key: ModelKey): number => bodyStyles.find((b) => b.model === key)?.length ?? 4.9;

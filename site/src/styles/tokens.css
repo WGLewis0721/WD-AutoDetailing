@@ -18,6 +18,8 @@
   --scrim-light: rgba(255, 255, 255, .94);
   --scrim-dark: rgba(11, 11, 12, .55);
   --scrim-dark-strong: rgba(11, 11, 12, .8);
+  --shine: rgba(255, 255, 255, .5);
+  --shine-soft: rgba(255, 255, 255, .12);
   /* feedback */
   --danger: #b3261e;
 

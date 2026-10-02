@@ -1,38 +1,72 @@
 ---
 import '../styles/base.css';
 import { SITE } from '../data/site';
-interface Props { title: string; description: string }
-const { title, description } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site).href;
-const ld = {
-  '@context': 'https://schema.org',
-  '@type': 'AutoDetailing',
+import { extras, packages } from '../data/menu';
+interface Props { title: string; description: string; schema?: Record<string, unknown>[]; noindex?: boolean }
+const { title, description, schema = [], noindex = false } = Astro.props;
+/* The site is served from a sub-path on GitHub Pages, so absolute URLs are built from the full site URL, not the host root. */
+const root = (Astro.site?.href ?? 'https://example.com/').replace(/\/?$/, '/');
+const abs = (p: string) => root + p.replace(/^\//, '');
+const canonical = abs(Astro.url.pathname);
+const ogImage = abs('og.jpg');
+const price = (cents: number) => (cents / 100).toFixed(2);
+const business = {
+  '@type': 'AutomotiveBusiness',
+  '@id': root + '#business',
+  additionalType: 'https://en.wikipedia.org/wiki/Auto_detailing',
   name: SITE.name,
   alternateName: ['Mirror Finish Mobile Detailing MGM', 'MFMD MGM'],
-  description,
+  description: SITE.description,
+  slogan: SITE.tagline,
+  url: root,
+  image: ogImage,
   telephone: '+1-334-652-2601',
-  url: Astro.site?.href,
-  areaServed: SITE.serviceArea.map((c) => ({ '@type': 'City', name: `${c}, ${SITE.region}` })),
-  sameAs: [SITE.bookingUrl],
+  priceRange: '$$',
+  currenciesAccepted: 'USD',
+  address: { '@type': 'PostalAddress', addressLocality: 'Montgomery', addressRegion: SITE.region, addressCountry: 'US' },
+  areaServed: SITE.serviceArea.map((c) => ({ '@type': 'City', name: c, containedInPlace: { '@type': 'State', name: 'Alabama' } })),
+  sameAs: [SITE.instagramUrl, SITE.bookingUrl],
+  potentialAction: { '@type': 'ReserveAction', target: abs('book/'), name: 'Book a mobile detail' },
+  hasOfferCatalog: {
+    '@type': 'OfferCatalog',
+    name: 'Mobile detailing packages and add-ons',
+    itemListElement: [
+      ...packages.map((p) => ({ '@type': 'Offer', price: price(p.cents), priceCurrency: 'USD', itemOffered: { '@type': 'Service', name: `${p.name} mobile detail`, description: p.features.join('. '), serviceType: 'Mobile auto detailing', provider: { '@id': root + '#business' } } })),
+      ...extras.map((e) => ({ '@type': 'Offer', price: price(e.cents), priceCurrency: 'USD', itemOffered: { '@type': 'Service', name: e.name, description: e.blurb, provider: { '@id': root + '#business' } } })),
+    ],
+  },
 };
+const website = { '@type': 'WebSite', '@id': root + '#website', url: root, name: SITE.name, inLanguage: 'en-US', publisher: { '@id': root + '#business' } };
+const ld = { '@context': 'https://schema.org', '@graph': [business, website, ...schema] };
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en-US">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="robots" content={noindex ? 'noindex,follow' : 'index,follow,max-image-preview:large'} />
     <meta name="theme-color" content="#ffffff" />
+    <meta name="format-detection" content="telephone=yes" />
+    <meta name="geo.region" content="US-AL" />
+    <meta name="geo.placename" content="Montgomery" />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Mirror Finish Mobile Detailing MGM" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content={SITE.name} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={new URL("og.jpg", (Astro.site?.href ?? "https://example.com/").replace(/\/?$/, "/")).href} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Mirror Finish Mobile Detailing, mobile car detailing in Montgomery, Alabama" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <script type="application/ld+json" set:html={JSON.stringify(ld)} />
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>

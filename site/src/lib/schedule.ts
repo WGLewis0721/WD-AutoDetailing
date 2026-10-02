@@ -34,5 +34,17 @@ export const isOpenDay = (d: Date, today: Date): boolean => {
   return d >= first && d <= last && !(S.closedDays as readonly number[]).includes(d.getDay());
 };
 
+export type DayState = 'open' | 'closed' | 'full' | 'past' | 'far';
+
+/** Why a day can or cannot be picked, so the calendar can say so instead of only greying it out. */
+export function dayState(d: Date, today: Date, totalMinutes: number): DayState {
+  const first = new Date(today); first.setDate(first.getDate() + S.leadDays);
+  const last = new Date(today); last.setDate(last.getDate() + S.horizonDays);
+  if (d < first) return 'past';
+  if (d > last) return 'far';
+  if ((S.closedDays as readonly number[]).includes(d.getDay())) return 'closed';
+  return dayHasRoom(iso(d), totalMinutes) ? 'open' : 'full';
+}
+
 /** A day can host the order if at least one start time fits and is free. */
 export const dayHasRoom = (dateIso: string, totalMinutes: number): boolean => slotsFor(dateIso, totalMinutes).some((s) => !s.taken);

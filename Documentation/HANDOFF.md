@@ -20,7 +20,10 @@ Client: Mirror Finish Mobile Detailing (Montgomery, AL), run by William Lewis. B
 Square developer app and location, plus where the server piece runs; real reward offer (current "$10 off" is placeholder); package time estimates; make/model size mapping spot check; Headlight price; Google Business Profile details (could not be read); hours/address/email not published until confirmed; custom domain.
 
 ## Not yet studied
-Aura U-shape and Refero web-apps pages were unreadable earlier. William is connecting the Refero MCP (https://api.refero.design/mcp) for a new session; use it to pull booking/web-app references and compare against `/` and `/book`, then update `BUILD_NOTES.md`.
+Aura U-shape is still unread. Refero is connected (MCP plus the `refero-design` skill in `.agents/skills/`); Round 3 used it for the booking flow only. Full Refero styles have not been pulled for `/`.
+
+## Round 3 (shipped, see BUILD_NOTES.md)
+Service-area check, detailer notes, calendar day states, declined and slot-taken states (`/book?demo=declined`, `?demo=taken`), eleven size-distinct 3D meshes, home page size finder, hero loop, SEO pass (canonical and sitemap sub-path fix, structured data, 404). Open: cancellation policy from the client, Lighthouse, Cloudflare connection, Square checkout.
 
 ## Gotchas learned
 - Pages deploys use a path-independent copy (`site/scripts/make-relative.mjs`); keep new root-absolute links compatible (`data-home`, `data-book`) or extend that script. Models load via `import.meta.url`.

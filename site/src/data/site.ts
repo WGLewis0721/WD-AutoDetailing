@@ -1,6 +1,7 @@
 export const SITE = {
   name: 'Mirror Finish Mobile Detailing',
   tagline: 'Schedule an hour of TLC for your vehicle',
+  description: 'Mobile car wash and auto detailing that comes to your home or workplace in Montgomery, AL and the River Region. Interior and exterior detailing, priced by vehicle size, booked online.',
   phoneDisplay: '334-652-2601',
   phoneTel: 'tel:+13346522601',
   phoneSms: 'sms:+13346522601',
