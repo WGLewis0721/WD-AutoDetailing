@@ -1,29 +1,50 @@
 # Mirror Finish Mobile Detailing - Website
 
-Public website for **Mirror Finish Mobile Detailing** (Montgomery, AL), built by Gray Matter.
+Public website and booking app for **Mirror Finish Mobile Detailing** (Montgomery, AL), built by Gray Matter.
 
-- **Stack:** Astro (static) + TypeScript, hosted on GitHub Pages and deployed by GitHub Actions. The run summary shows the site URL.
-- **Booking:** stays on the existing Square Appointments site (`https://mirror-finish-mobile-detailing.square.site/`). No custom backend, no AWS.
-- **Contact:** call/text 334-652-2601.
+Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a custom domain will be pointed at it later).
+
+## What is built (Round 1)
+
+- **Marketing site** (`/`): white-dominant design with black bands and gold accents (60 / 30 / 10). Hero, packages, vehicle-size pricing, add-ons, how it works, recent work, service area, "not ready yet" options, and a sticky Book bar on mobile. Every Book button goes to `/book`.
+- **Booking app** (`/book`): five steps with a live summary.
+  1. **Vehicle:** year, make and model (about 35 makes). The size class and size charge are detected automatically, with a body-style fallback for unlisted vehicles. A simple 3D vehicle (sedan, coupe, hatchback, SUV, truck, van) shows the size.
+  2. **Build:** choose a package (Deluxe, Exterior, Interior) and add-ons. The total, the 20% deposit and the balance update live.
+  3. **When:** month calendar and time slots.
+  4. **Details:** name, phone, email and service address.
+  5. **Deposit:** review and book, then a confirmation with a shareable **Detail Pass**, add-to-calendar file, a reward card and "keep exploring" options.
+- **Design system:** one tokens file, a small set of shared components, and a build check (`npm run check:tokens`) that fails if a colour is hard-coded outside the tokens.
+- **Imagery:** hero and section images generated with Higgsfield, plus real photos from the client's Instagram in the gallery.
+
+## Preview limits (not live yet)
+
+- Availability is **sample data** and **no payment is taken**. The page shows a "PREVIEW" banner.
+- Square checkout, real availability, and creating the booking in Square (Round 2) need a small server component, because GitHub Pages only serves static files. Where that runs is still to be decided.
+- The reward ("$10 off your next detail") is placeholder text. Package time estimates and the make/model size mapping need confirming.
 
 ## Project documents
 
 | Document | Location |
 |---|---|
-| Website build plan (architecture, timeline, gates, CI/CD, risks) | [`Documentation/WEBSITE_BUILD_PLAN.md`](Documentation/WEBSITE_BUILD_PLAN.md) |
-| Wireframes, 3 grayscale options (open in a browser) | [`design/wireframes/index.html`](design/wireframes/index.html) (copy: [`Documentation/WEBSITE_WIREFRAMES.html`](Documentation/WEBSITE_WIREFRAMES.html)) |
-| Google Drive to GitHub asset sync | [`Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md`](Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md), [`ASSET_WORKFLOW_QUICK_START.md`](Documentation/ASSET_WORKFLOW_QUICK_START.md), [`GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md`](Documentation/GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md), [`GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md`](Documentation/GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md) |
+| Website build plan (original plan; hosting is now GitHub Pages) | [`Documentation/WEBSITE_BUILD_PLAN.md`](Documentation/WEBSITE_BUILD_PLAN.md) |
+| Grayscale wireframes: marketing options and the booking flow | [`design/wireframes/index.html`](design/wireframes/index.html), [`design/wireframes/booking.html`](design/wireframes/booking.html) |
+| Google Drive to GitHub asset sync | [`GOOGLE_DRIVE_ASSET_SYNC_SETUP.md`](Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md), [`ASSET_WORKFLOW_QUICK_START.md`](Documentation/ASSET_WORKFLOW_QUICK_START.md), [`GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md`](Documentation/GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md), [`GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md`](Documentation/GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md) |
+| Client onboarding docs | [`Documentation/new-client-*.md`](Documentation) |
 
-The same plan and wireframes are in the client's Google Drive folder (Mirror Finish Mobile Detailing MGM - Website Design).
+The plan and wireframes are also in the client's Google Drive folder.
 
 ## Layout
 
 ```
 site/                 Astro project (static site)
+  src/pages           index (marketing), book (booking app), 404
+  src/lib             pricing, vehicles, 3D viewer, booking logic (+ tests)
+  src/data            site details and the price list (single source of truth)
+  src/styles          tokens.css (colours/spacing) and shared styles
 design/wireframes/    Grayscale wireframes
-Assets/               Images, logos, etc. synced from Google Drive every 5 min
+Assets/               Images etc. synced from Google Drive every 5 minutes
 Documentation/        Plans and how-tos
-.github/workflows/    Drive sync (and, once built, site CI/deploy)
+.github/workflows/    Site CI/CD (GitHub Pages) and Drive sync
 ```
 
 ## Develop
@@ -31,10 +52,13 @@ Documentation/        Plans and how-tos
 ```bash
 cd site
 npm install
-npm run dev      # local preview
-npm run build    # static output in site/dist
+npm run dev        # http://localhost:4321 and on your network for phone testing
+npm test           # pricing tests
+npm run build      # token check + production build in site/dist
 ```
 
-Deploy: push to a branch or `main`; the Site CI/CD workflow builds and publishes to GitHub Pages. One-time setup: Settings > Pages > Source = GitHub Actions (and allow the branch under Settings > Environments > github-pages for branch previews).
+## Deploy
 
-> The older `Documentation/new-client-*.md` files describe a previous AWS booking template and describe the process; hosting is currently GitHub Pages.
+Pushing to `main` runs **Site CI/CD**: type check, tests, build, link checks, then a publish to GitHub Pages. The URL is in the `deploy` job summary.
+
+One-time setup: **Settings > Pages > Source = GitHub Actions**. For branch previews, allow the branch under **Settings > Environments > github-pages > Deployment branches**.
