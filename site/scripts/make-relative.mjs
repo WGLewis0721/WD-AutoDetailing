@@ -19,7 +19,12 @@ for (const file of walk(out).filter((f) => f.endsWith('.html'))) {
     .replace(/href="\/book(\/?)(\?[^"]*)?"/g, (_, __, q = '') => `href="${up}book/index.html${q}"`)
     .replace(/href="\/#/g, `href="${up}index.html#`)
     .replace(/href="\/"/g, `href="${up}index.html"`)
+    .replace('data-book="/book"', `data-book="${up}book/index.html"`)
     .replace('data-home="/"', `data-home="${up}index.html"`);
   writeFileSync(file, html);
+}
+for (const file of walk(out).filter((f) => f.endsWith('.css'))) {
+  const css = readFileSync(file, 'utf8').replace(/url\((["']?)\/_astro\//g, 'url($1./');
+  writeFileSync(file, css);
 }
 console.log('relative copy written to', out);

@@ -8,4 +8,5 @@ export const SITE = {
   serviceArea: ['Montgomery', 'Wetumpka', 'Prattville', 'Pike Road', 'Millbrook', 'Cecil', 'Hayneville', 'White Hall'],
   region: 'AL',
   instagramUrl: 'https://www.instagram.com/mfmd_mgm/',
+  schedule: { openHour: 8, closeHour: 18, closedDays: [0], stepMinutes: 60, leadDays: 1, horizonDays: 42 },
 } as const;

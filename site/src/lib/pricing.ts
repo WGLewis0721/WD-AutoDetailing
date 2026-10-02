@@ -32,3 +32,16 @@ export const readiness = (sel: Selection): number => {
   n += Math.min(sel.extraIds.length, 3) * 10;
   return Math.min(n, 100);
 };
+
+export const MAX_CARS = 4;
+
+export interface CarQuote extends Quote { label: string }
+export interface OrderQuote { cars: CarQuote[]; totalCents: number; depositCents: number; balanceCents: number; minutes: number }
+
+/** Each car is priced on its own; the deposit is 20% of the grand total, rounded once. */
+export function quoteOrder(cars: { label: string; sel: Selection }[]): OrderQuote {
+  const priced = cars.slice(0, MAX_CARS).map((c) => ({ ...quote(c.sel), label: c.label }));
+  const totalCents = priced.reduce((n, c) => n + c.totalCents, 0);
+  const depositCents = Math.round(totalCents * DEPOSIT_RATE);
+  return { cars: priced, totalCents, depositCents, balanceCents: totalCents - depositCents, minutes: priced.reduce((n, c) => n + c.minutes, 0) };
+}

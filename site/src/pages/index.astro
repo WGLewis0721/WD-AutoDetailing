@@ -6,6 +6,8 @@ import Footer from '../components/Footer.astro';
 import { SITE } from '../data/site';
 import { packages, sizes, extras } from '../data/menu';
 import { fmt } from '../lib/pricing';
+import { icon, silhouette } from '../lib/icons';
+import { makes } from '../lib/vehicles';
 import hero from '../assets/hf-hero.png';
 import paint from '../assets/hf-paint.png';
 import interior from '../assets/hf-interior.png';
@@ -17,18 +19,26 @@ import g5 from '../assets/ig_12.jpg';
 import g6 from '../assets/ig_16.jpg';
 
 const gallery = [
-  { src: g1, alt: 'Freshly detailed dark GMC truck' },
-  { src: g2, alt: 'Restored, clear truck headlight' },
-  { src: g3, alt: 'Clean vehicle interior' },
-  { src: g4, alt: 'Detailed black Audi' },
-  { src: g5, alt: 'Detailed black sedan' },
-  { src: g6, alt: 'Detailed Chevrolet sedan' },
+  { src: g1, alt: 'Freshly detailed dark GMC truck', cls: 'tall' },
+  { src: g4, alt: 'Detailed black Audi', cls: '' },
+  { src: g2, alt: 'Restored, clear truck headlight', cls: '' },
+  { src: g5, alt: 'Detailed black sedan', cls: 'wide' },
+  { src: g3, alt: 'Clean vehicle interior', cls: '' },
+  { src: g6, alt: 'Detailed Chevrolet sedan', cls: '' },
 ];
 const steps = [
-  ['Tell us your vehicle', 'We detect the size and price instantly.'],
-  ['Build your detail', 'Pick a package and any add-ons. The total updates live.'],
-  ['Choose a time, pay 20%', 'Reserve your spot with a small deposit. The rest is due after.'],
+  ['Tell us your vehicle', 'Pick the year, make and model. We set the size and price for you.'],
+  ['Build your detail', 'Choose a package and any add-ons. Your total updates as you go.'],
+  ['Pick a time, pay 20%', 'Reserve your spot with a small deposit. The rest is due after the detail.'],
 ];
+const faqs = [
+  ['Do you really come to me?', 'Yes. Mirror Finish is mobile. We detail your vehicle where it is parked, at home or at work, across Montgomery and the River Region.'],
+  ['How does pricing work?', 'Each package has a base price for a sedan or coupe. Larger vehicles add a size charge, from $20 for a small SUV or truck up to $60 for a van, 3-row SUV or HD truck. Add-ons are priced separately.'],
+  ['What is the deposit?', 'You pay 20% of your total to reserve the time. The rest is due after the detail. The final price can vary with vehicle condition and size after inspection.'],
+  ['Can I book more than one vehicle?', 'Yes. You can add up to four vehicles to one order and choose a package for each.'],
+  ['Where do you serve?', `${SITE.serviceArea.join(', ')}, AL. Not sure if you are in range? Text ${SITE.phoneDisplay}.`],
+];
+const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
 ---
 <Base
   title="Mirror Finish Mobile Detailing MGM | Mobile Car Wash & Detailing in Montgomery, AL"
@@ -39,156 +49,252 @@ const steps = [
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Mobile detailing · Montgomery, AL</p>
-          <h1>A mirror finish,<br />at your door.</h1>
-          <p class="lead">{SITE.tagline}. Build your detail, see your price instantly, and book in minutes.</p>
-          <p class="cta">
-            <a class="btn" href="/book">Build my detail</a>
-            <a class="btn btn--ghost" href={SITE.phoneSms}>Text {SITE.phoneDisplay}</a>
-          </p>
-          <ul class="facts"><li>We come to you</li><li>Instant price by vehicle</li><li>20% deposit books it</li></ul>
+          <p class="eyebrow reveal">Mobile detailing · Montgomery, AL</p>
+          <h1 class="reveal" style="--d:80ms">A <em>mirror finish,</em><br />at your door.</h1>
+          <p class="lead reveal" style="--d:160ms">{SITE.tagline}. Tell us your vehicle, build your detail, and see your price before you book.</p>
+          <form class="quick card reveal" style="--d:240ms" id="quick" data-book="/book" aria-label="Get an instant price">
+            <p class="quick-t"><span>Get your price</span><small>Takes about a minute</small></p>
+            <div class="quick-row">
+              <div class="field"><label for="qmake">Make</label><select id="qmake"><option value="">Select make</option>{makes.map((m) => <option>{m}</option>)}</select></div>
+              <div class="field"><label for="qmodel">Model</label><select id="qmodel" disabled><option value="">Select model</option></select></div>
+            </div>
+            <button class="btn btn--dark btn--lg" type="submit"><span>See my price</span><Fragment set:html={icon('arrow', 20)} /></button>
+          </form>
+          <ul class="trust reveal" style="--d:320ms">
+            <li><Fragment set:html={icon('home', 18)} />We come to you</li>
+            <li><Fragment set:html={icon('clock', 18)} />Instant pricing</li>
+            <li><Fragment set:html={icon('shield', 18)} />20% deposit books it</li>
+          </ul>
         </div>
-        <Image class="hero-img" src={hero} alt="Glossy black SUV in a bright showroom" widths={[480, 720, 1000]} sizes="(min-width: 900px) 560px, 100vw" loading="eager" />
+        <div class="hero-art reveal" style="--d:200ms">
+          <Image class="hero-img" src={hero} alt="Glossy black SUV in a bright showroom" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" />
+          <div class="float f1"><Fragment set:html={icon('pin', 18)} /><span>{SITE.serviceArea.length} towns served</span></div>
+          <div class="float f2"><small>Deluxe detail from</small><b class="num">{fmt(packages[0].cents)}</b></div>
+        </div>
       </div>
     </section>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="track">
+        {[0, 1].map(() => <span>{SITE.serviceArea.map((c) => <i>{c}</i>)}</span>)}
+      </div>
+    </div>
 
     <section id="packages" class="section">
       <div class="wrap">
-        <p class="eyebrow">Packages</p>
-        <h2>Choose your detail</h2>
-        <div class="grid3">
-          {packages.map((p) => (
-            <article class="card pkg">
+        <div class="head reveal"><p class="eyebrow">Packages</p><h2>Three ways to <em>shine</em></h2><p class="lead">Pick the detail that fits. Every package is done at your location.</p></div>
+        <div class="pkgs">
+          {packages.map((p, i) => (
+            <article class={`pkg reveal ${p.id === 'deluxe' ? 'pkg--feature' : ''}`} style={`--d:${i * 90}ms`}>
               {p.badge && <em class="badge">{p.badge}</em>}
               <h3>{p.name}</h3>
-              <p class="price">{fmt(p.cents)}</p>
-              <ul class="feat">{p.features.map((f) => <li>{f}</li>)}</ul>
-              <a class="btn btn--dark" href={`/book?pkg=${p.id}`}>Build {p.name}</a>
+              <p class="price num">{fmt(p.cents)}</p>
+              <ul class="feat">{p.features.map((f) => <li><Fragment set:html={icon('check', 18)} />{f}</li>)}</ul>
+              <a class={`btn ${p.id === 'deluxe' ? '' : 'btn--dark'}`} href={`/book?pkg=${p.id}`}><span>Build {p.name}</span><Fragment set:html={icon('arrow', 18)} /></a>
             </article>
           ))}
-        </div>
-        <div class="split">
-          <div>
-            <h3>Priced to your vehicle</h3>
-            <p class="muted">Package prices are for a sedan or coupe. Larger vehicles add a size charge, and the booking tool works it out for you.</p>
-            <table class="tbl"><caption class="sr">Vehicle size add-ons</caption><tbody>
-              {sizes.map((r) => (<tr><th scope="row">{r.name}</th><td>{r.cents ? '+' + fmt(r.cents) : '$0'}</td></tr>))}
-            </tbody></table>
-            <p><a class="btn" href="/book">Find my price</a></p>
-          </div>
-          <Image class="split-img" src={paint} alt="Mirror-finish black paint with water beads" widths={[360, 600]} sizes="(min-width: 900px) 480px, 100vw" loading="lazy" />
         </div>
       </div>
     </section>
 
-    <section id="extras" class="section tint">
+    <section id="sizes" class="section tint">
       <div class="wrap">
-        <p class="eyebrow">Add-ons</p>
-        <h2>Make it yours</h2>
-        <div class="grid2">
-          {extras.map((e) => (
-            <article class="card ext"><div><h3>{e.name}</h3><p class="muted">{e.blurb}</p></div><b>+{fmt(e.cents)}</b></article>
+        <div class="head reveal"><p class="eyebrow">Pricing by size</p><h2>Priced to <em>your vehicle</em></h2><p class="lead">Package prices are for a sedan or coupe. Larger vehicles add a size charge, and the booking tool works it out for you.</p></div>
+        <div class="sizes">
+          {sizes.map((s, i) => (
+            <div class="size reveal" style={`--d:${i * 70}ms`}>
+              <Fragment set:html={silhouette(s.id)} />
+              <h3>{s.name}</h3>
+              <p class="num">{s.cents ? '+' + fmt(s.cents) : 'Included'}</p>
+            </div>
           ))}
         </div>
-        <p><a class="btn btn--dark" href="/book">Add to my build</a></p>
+        <p class="reveal"><a class="btn btn--dark btn--lg" href="/book"><span>Find my exact price</span><Fragment set:html={icon('arrow', 20)} /></a></p>
+      </div>
+    </section>
+
+    <section id="extras" class="section">
+      <div class="wrap split">
+        <div>
+          <div class="head reveal"><p class="eyebrow">Add-ons</p><h2>Make it <em>yours</em></h2><p class="lead">Add any of these to any package. Pricing is per vehicle.</p></div>
+          <ul class="menu">
+            {extras.map((e, i) => (
+              <li class="reveal" style={`--d:${i * 70}ms`}>
+                <span class="mi"><Fragment set:html={icon(addonIcons[i % 4], 22)} /></span>
+                <div><b>{e.name}</b><small>{e.blurb}</small></div>
+                <span class="dots" aria-hidden="true"></span>
+                <b class="num">+{fmt(e.cents)}</b>
+              </li>
+            ))}
+          </ul>
+          <p class="reveal"><a class="btn btn--dark" href="/book"><span>Add to my build</span><Fragment set:html={icon('arrow', 18)} /></a></p>
+        </div>
+        <Image class="split-img reveal" src={paint} alt="Mirror-finish black paint with water beads" widths={[360, 600]} sizes="(min-width: 900px) 480px, 100vw" loading="lazy" />
       </div>
     </section>
 
     <section id="how" class="section band">
       <div class="wrap">
-        <p class="eyebrow">How it works</p>
-        <h2>Booked in three steps</h2>
+        <div class="head reveal"><p class="eyebrow">How it works</p><h2>Booked in <em>three steps</em></h2></div>
         <ol class="steps">
-          {steps.map(([t, d], i) => (<li><span class="num" aria-hidden="true">{i + 1}</span><h3>{t}</h3><p class="muted">{d}</p></li>))}
+          {steps.map(([t, d], i) => (<li class="reveal" style={`--d:${i * 100}ms`}><span class="bignum" aria-hidden="true">{i + 1}</span><h3>{t}</h3><p class="muted">{d}</p></li>))}
         </ol>
-        <p><a class="btn" href="/book">Start now</a></p>
+        <p class="reveal"><a class="btn btn--lg" href="/book"><span>Start now</span><Fragment set:html={icon('arrow', 20)} /></a></p>
       </div>
     </section>
 
     <section id="gallery" class="section">
       <div class="wrap">
-        <p class="eyebrow">Recent work</p>
-        <h2>Results you can see</h2>
+        <div class="head reveal"><p class="eyebrow">Recent work</p><h2>Results you can <em>see</em></h2></div>
         <div class="gal">
-          {gallery.map((g) => (<Image src={g.src} alt={g.alt} width={480} height={480} widths={[240, 480, 720]} sizes="(min-width: 900px) 360px, 50vw" loading="lazy" />))}
+          {gallery.map((g, i) => (<figure class={`reveal ${g.cls}`} style={`--d:${(i % 3) * 80}ms`}><Image src={g.src} alt={g.alt} width={640} height={640} widths={[320, 640, 960]} sizes="(min-width: 900px) 380px, 50vw" loading="lazy" /></figure>))}
         </div>
-        <p><a class="btn btn--dark" href="/book">Book yours</a></p>
       </div>
     </section>
 
     <section id="areas" class="section tint">
-      <div class="wrap split">
+      <div class="wrap split split--flip">
+        <Image class="split-img reveal" src={interior} alt="Clean black leather interior" widths={[360, 600]} sizes="(min-width: 900px) 480px, 100vw" loading="lazy" />
         <div>
-          <p class="eyebrow">Service area</p>
-          <h2>Where we go</h2>
-          <ul class="chips">{SITE.serviceArea.map((c) => <li class="chip">{c}, {SITE.region}</li>)}</ul>
+          <div class="head reveal"><p class="eyebrow">Service area</p><h2>Where we <em>go</em></h2><p class="lead">We detail at your home or workplace in these towns. Not on the list? Text us.</p></div>
+          <ul class="chips reveal">{SITE.serviceArea.map((c) => <li class="chip"><Fragment set:html={icon('pin', 14)} />{c}, {SITE.region}</li>)}</ul>
         </div>
-        <Image class="split-img" src={interior} alt="Clean black leather interior" widths={[360, 600]} sizes="(min-width: 900px) 480px, 100vw" loading="lazy" />
+      </div>
+    </section>
+
+    <section id="faq" class="section">
+      <div class="wrap narrow">
+        <div class="head reveal"><p class="eyebrow">Questions</p><h2>Good to <em>know</em></h2></div>
+        <div class="faq">
+          {faqs.map(([q, a]) => (<details class="reveal"><summary>{q}<Fragment set:html={icon('plus', 20)} /></summary><p>{a}</p></details>))}
+        </div>
       </div>
     </section>
 
     <section class="section band final">
-      <div class="wrap">
-        <h2>Ready for a spotless ride?</h2>
-        <p class="lead">Build your detail in about a minute.</p>
-        <p class="cta"><a class="btn" href="/book">Build my detail</a><a class="btn btn--ghost" href={SITE.phoneSms}>Call / Text {SITE.phoneDisplay}</a></p>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="wrap">
-        <p class="eyebrow">Not ready yet?</p>
-        <h2>No problem</h2>
-        <div class="grid4">
-          <a class="card alt" href={SITE.phoneSms}><b>Text a question</b><span class="muted">{SITE.phoneDisplay}</span></a>
-          <a class="card alt" href="#gallery"><b>See recent work</b><span class="muted">Real jobs from around town.</span></a>
-          <a class="card alt" href="#areas"><b>Check your area</b><span class="muted">8 towns and counting.</span></a>
-          <a class="card alt" href={SITE.instagramUrl}><b>Follow on Instagram</b><span class="muted">@mfmd_mgm</span></a>
-        </div>
+      <Image class="final-bg" src={paint} alt="" widths={[480, 900]} sizes="100vw" loading="lazy" />
+      <div class="wrap final-in">
+        <h2 class="reveal">Ready for a <em>spotless</em> ride?</h2>
+        <p class="lead reveal" style="--d:80ms">Build your detail in about a minute.</p>
+        <p class="cta reveal" style="--d:160ms"><a class="btn btn--lg" href="/book"><span>Build my detail</span><Fragment set:html={icon('arrow', 20)} /></a><a class="btn btn--ghost btn--lg" href={SITE.phoneSms}>Text {SITE.phoneDisplay}</a></p>
+        <ul class="alts reveal" style="--d:240ms"><li><a href="#gallery">See recent work</a></li><li><a href="#areas">Check your area</a></li><li><a href={SITE.instagramUrl}>Follow on Instagram</a></li></ul>
       </div>
     </section>
   </main>
   <Footer />
-  <div class="sticky" role="region" aria-label="Quick actions"><a class="btn" href="/book">Build my detail</a><a class="btn btn--dark" href={SITE.phoneSms}>Call / Text</a></div>
+  <div class="sticky" role="region" aria-label="Quick actions"><a class="btn" href="/book"><span>Build my detail</span><Fragment set:html={icon('arrow', 18)} /></a><a class="btn btn--dark" href={SITE.phoneSms}>Text us</a></div>
+
+  <script>
+    import { modelsFor } from '../lib/vehicles';
+    const form = document.getElementById('quick') as HTMLFormElement | null;
+    if (form) {
+      const make = document.getElementById('qmake') as HTMLSelectElement;
+      const model = document.getElementById('qmodel') as HTMLSelectElement;
+      make.addEventListener('change', () => {
+        const list = modelsFor(make.value);
+        model.innerHTML = '<option value="">Select model</option>' + list.map((m) => `<option>${m.name}</option>`).join('');
+        model.disabled = list.length === 0;
+      });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = new URLSearchParams();
+        if (make.value) q.set('make', make.value);
+        if (model.value) q.set('model', model.value);
+        location.href = (form.dataset.book ?? '/book') + (q.toString() ? '?' + q.toString() : '');
+      });
+    }
+  </script>
 
   <style>
-    .hero { padding: var(--s6) 0 var(--s7); }
-    .hero-grid { display: grid; gap: var(--s6); align-items: center; }
+    .hero { padding: var(--s6) 0 var(--s8); overflow: hidden; }
+    .hero-grid { display: grid; gap: var(--s7); align-items: center; }
+    .quick { margin: var(--s6) 0 var(--s5); padding: var(--s5); box-shadow: var(--shadow); max-width: 34rem; display: grid; gap: var(--s2); }
+    .quick-t { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 var(--s2); font-weight: 800; }
+    .quick-t small { font-weight: 500; color: var(--muted); }
+    .quick-row { display: grid; gap: 0 var(--s3); }
+    .quick .field { margin-bottom: var(--s3); }
+    .trust { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5); font-weight: 600; font-size: var(--fs-sm); }
+    .trust li { display: inline-flex; align-items: center; gap: var(--s2); }
+    .trust .ic { color: var(--gold-deep); }
+    .hero-art { position: relative; }
+    .hero-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+    .float { position: absolute; display: flex; align-items: center; gap: var(--s2); background: var(--scrim-light); backdrop-filter: blur(10px); border: 1px solid var(--line-light); border-radius: var(--radius-pill); padding: var(--s2) var(--s4); font-weight: 700; font-size: var(--fs-sm); box-shadow: var(--shadow-sm); }
+    .f1 { top: var(--s5); right: var(--s4); }
+    .f2 { bottom: var(--s5); left: var(--s4); border-radius: var(--radius); flex-direction: column; align-items: flex-start; gap: 0; padding: var(--s3) var(--s4); }
+    .f2 small { font-weight: 500; color: var(--muted); } .f2 b { font-family: var(--font-display); font-size: 2rem; font-weight: 400; line-height: 1; }
+    .marquee { background: var(--black); color: var(--white); overflow: hidden; border-block: 1px solid var(--line-dark); }
+    .track { display: flex; width: max-content; animation: slide 38s linear infinite; }
+    .track span { display: flex; }
+    .track i { font-style: normal; font-family: var(--font-display); font-size: 1.6rem; padding: var(--s4) var(--s6); white-space: nowrap; }
+    .track i::after { content: '◆'; color: var(--gold); font-size: .6em; margin-left: var(--s6); vertical-align: middle; }
+    @keyframes slide { to { transform: translateX(-50%); } }
+    .head { max-width: 40rem; margin-bottom: var(--s7); }
+    .pkgs { display: grid; gap: var(--s4); }
+    .pkg { position: relative; display: grid; gap: var(--s3); align-content: start; background: var(--white); border: 1px solid var(--line-light); border-radius: var(--radius-lg); padding: var(--s6); transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+    .pkg:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+    .pkg h3 { margin: 0; font-size: var(--fs-xl); }
+    .pkg .price { margin: 0; }
+    .pkg--feature { background: var(--black); color: var(--white); border-color: var(--black); }
+    .pkg--feature .feat { color: var(--muted-on-dark); } .pkg--feature .price { color: var(--gold-hi); }
+    .badge { position: absolute; top: var(--s5); right: var(--s5); background: var(--gold); color: var(--black); font: 700 var(--fs-xs) var(--font); letter-spacing: .1em; text-transform: uppercase; padding: var(--s1) var(--s3); border-radius: var(--radius-pill); font-style: normal; }
+    .feat { list-style: none; margin: var(--s2) 0 var(--s4); padding: 0; display: grid; gap: var(--s2); color: var(--muted); }
+    .feat li { display: flex; gap: var(--s3); align-items: flex-start; }
+    .feat .ic { color: var(--gold-deep); margin-top: 3px; } .pkg--feature .feat .ic { color: var(--gold-hi); }
+    .sizes { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s4); margin-bottom: var(--s7); }
+    .size { background: var(--white); border: 1px solid var(--line-light); border-radius: var(--radius-lg); padding: var(--s5); display: grid; gap: var(--s2); justify-items: start; transition: border-color .3s var(--ease), transform .3s var(--ease); }
+    .size:hover { border-color: var(--black); transform: translateY(-3px); }
+    .size .sil { width: 100%; max-width: 150px; height: auto; color: var(--black); margin-bottom: var(--s3); }
+    .size h3 { margin: 0; font-size: var(--fs-md); } .size p { margin: 0; font-family: var(--font-display); font-size: 2rem; line-height: 1; }
+    .split { display: grid; gap: var(--s7); align-items: center; }
+    .split-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow); max-height: 560px; }
+    .menu { list-style: none; padding: 0; margin: 0 0 var(--s6); display: grid; }
+    .menu li { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s4); align-items: center; padding: var(--s4) 0; border-bottom: 1px solid var(--line-light); }
+    .menu .mi { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--ivory); color: var(--gold-deep); }
+    .menu small { display: block; color: var(--muted); font-size: var(--fs-sm); line-height: 1.4; }
+    .menu .dots { display: none; }
+    .menu li > b:last-child { font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; grid-column: 3 / 5; }
+    .steps { list-style: none; padding: 0; margin: 0 0 var(--s7); display: grid; gap: var(--s6); }
+    .steps li { border-top: 1px solid var(--line-dark); padding-top: var(--s5); }
+    .bignum { display: block; font-family: var(--font-display); font-size: 5rem; line-height: 1; color: var(--gold); margin-bottom: var(--s3); }
+    .steps h3 { color: var(--white); }
+    .gal { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); }
+    .gal figure { margin: 0; overflow: hidden; border-radius: var(--radius-lg); aspect-ratio: 1; }
+    .gal img { width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease); }
+    .gal figure:hover img { transform: scale(1.06); }
+    .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+    .chip .ic { color: var(--gold-deep); }
+    .narrow { max-width: 780px; }
+    .faq { border-top: 1px solid var(--line-light); }
+    .faq details { border-bottom: 1px solid var(--line-light); }
+    .faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--s4); padding: var(--s5) 0; font-weight: 700; font-size: var(--fs-lg); }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary .ic { transition: transform .3s var(--ease); color: var(--gold-deep); }
+    .faq details[open] summary .ic { transform: rotate(45deg); }
+    .faq details p { color: var(--muted); padding-bottom: var(--s5); margin: 0; max-width: 40em; }
+    .final { text-align: center; overflow: hidden; padding: var(--s9) 0; }
+    .final-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; }
+    .final-in { position: relative; display: grid; justify-items: center; }
+    .final h2 { font-size: clamp(2.8rem, 8vw, 5.5rem); }
     .cta { display: flex; flex-wrap: wrap; gap: var(--s3); margin: var(--s5) 0; }
-    .facts { list-style: none; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); padding: 0; margin: 0; font-weight: 600; font-size: .9rem; }
-    .facts li::before { content: ''; display: inline-block; width: var(--s2); height: var(--s2); border-radius: 50%; background: var(--gold); margin-right: var(--s2); }
-    .hero-img, .split-img { border-radius: var(--radius); width: 100%; height: auto; box-shadow: var(--shadow); object-fit: cover; }
-    .hero-img { aspect-ratio: 4 / 3; }
-    .split-img { aspect-ratio: 4 / 3; max-height: 460px; }
-    .grid3, .grid2, .grid4 { display: grid; gap: var(--s4); margin: var(--s5) 0; }
-    .pkg { position: relative; display: grid; gap: var(--s2); align-content: start; }
-    .badge { position: absolute; top: calc(var(--s3) * -1); right: var(--s4); background: var(--gold); color: var(--black); font: 700 .7rem var(--font); letter-spacing: .08em; text-transform: uppercase; padding: var(--s1) var(--s3); border-radius: var(--radius-pill); font-style: normal; }
-    .feat { margin: 0 0 var(--s3); padding-left: 1.1em; color: var(--muted); }
-    .split { display: grid; gap: var(--s6); align-items: center; margin-top: var(--s7); }
-    .tbl { width: 100%; border-collapse: collapse; margin: var(--s3) 0 var(--s5); }
-    .tbl th, .tbl td { padding: var(--s3) 0; border-bottom: 1px solid var(--line-light); text-align: left; font-weight: 500; }
-    .tbl td { text-align: right; font-weight: 800; }
-    .ext { display: flex; justify-content: space-between; gap: var(--s4); align-items: start; }
-    .ext p { margin: 0; }
-    .steps { list-style: none; padding: 0; margin: var(--s5) 0; display: grid; gap: var(--s5); }
-    .num { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--gold); color: var(--black); font-weight: 800; margin-bottom: var(--s3); }
-    .gal { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); margin: var(--s5) 0; }
-    .gal img { border-radius: var(--radius); aspect-ratio: 1; object-fit: cover; width: 100%; }
-    .chips { list-style: none; padding: 0; margin: var(--s4) 0 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
-    .final { text-align: center; } .final .cta { justify-content: center; } .final .lead { margin-inline: auto; }
-    .alt { display: grid; gap: var(--s1); text-decoration: none; transition: border-color var(--t) var(--ease); }
-    .alt:hover { border-color: var(--black); }
-    .sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: var(--s3); padding: var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom)); background: var(--scrim-light); border-top: 1px solid var(--line-light); }
+    .final .cta { justify-content: center; }
+    .alts { list-style: none; padding: 0; margin: var(--s4) 0 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s6); justify-content: center; font-size: var(--fs-sm); }
+    .alts a { color: var(--muted-on-dark); text-decoration-color: var(--gold); text-underline-offset: 4px; }
+    .sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: var(--s3); padding: var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom)); background: var(--scrim-light); backdrop-filter: blur(12px); border-top: 1px solid var(--line-light); }
     .sticky .btn { flex: 1; }
     @media (min-width: 900px) {
-      .hero { padding: var(--s8) 0; }
-      .hero-grid { grid-template-columns: 1fr 1.05fr; gap: var(--s8); }
-      .grid3 { grid-template-columns: repeat(3, 1fr); } .grid2 { grid-template-columns: repeat(2, 1fr); } .grid4 { grid-template-columns: repeat(4, 1fr); }
-      .split { grid-template-columns: 1fr 1fr; gap: var(--s8); }
-      .steps { grid-template-columns: repeat(3, 1fr); }
-      .gal { grid-template-columns: repeat(3, 1fr); gap: var(--s4); }
+      .hero { padding: var(--s8) 0 var(--s9); }
+      .hero-grid { grid-template-columns: 1.1fr .9fr; gap: var(--s8); }
+      .quick-row { grid-template-columns: 1fr 1fr; }
+      .pkgs { grid-template-columns: repeat(3, 1fr); gap: var(--s5); }
+      .sizes { grid-template-columns: repeat(4, 1fr); }
+      .split { grid-template-columns: 1.1fr .9fr; gap: var(--s8); }
+      .split--flip { grid-template-columns: .9fr 1.1fr; }
+      .steps { grid-template-columns: repeat(3, 1fr); gap: var(--s7); }
+      .gal { grid-template-columns: repeat(4, 1fr); gap: var(--s4); grid-auto-rows: 250px; grid-auto-flow: dense; }
+      .gal figure { aspect-ratio: auto; }
+      .gal .tall { grid-row: span 2; } .gal .wide { grid-column: span 2; }
       .sticky { display: none; }
     }
-    @media (max-width: 899px) { .foot { padding-bottom: 110px; } }
+    @media (max-width: 899px) { .foot { padding-bottom: 110px; } .hero-img { aspect-ratio: 4 / 3; } }
   </style>
 </Base>

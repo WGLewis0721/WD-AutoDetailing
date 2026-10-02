@@ -4,7 +4,7 @@ Public website and booking app for **Mirror Finish Mobile Detailing** (Montgomer
 
 Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a custom domain will be pointed at it later).
 
-## What is built (Round 1)
+## What is built (Rounds 1 and 2)
 
 - **Marketing site** (`/`): white-dominant design with black bands and gold accents (60 / 30 / 10). Hero, packages, vehicle-size pricing, add-ons, how it works, recent work, service area, "not ready yet" options, and a sticky Book bar on mobile. Every Book button goes to `/book`.
 - **Booking app** (`/book`): five steps with a live summary.
@@ -13,6 +13,9 @@ Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a cu
   3. **When:** month calendar and time slots.
   4. **Details:** name, phone, email and service address.
   5. **Deposit:** review and book, then a confirmation with a shareable **Detail Pass**, add-to-calendar file, a reward card and "keep exploring" options.
+- **Multi-car orders:** add up to 4 cars to one order. Each car has its own vehicle, package and add-ons; the deposit is 20% of the grand total; scheduling shows only start times where the whole order fits in working hours (one detailer, back to back).
+- **3D vehicles:** six body styles generated with Higgsfield (image to 3D), shown on a showroom stage with a rotating turntable.
+- **Polish:** serif display type, instant-price quick start on the home page, animated totals, step transitions, FAQ, scroll reveals that respect reduced motion.
 - **Design system:** one tokens file, a small set of shared components, and a build check (`npm run check:tokens`) that fails if a colour is hard-coded outside the tokens.
 - **Imagery:** hero and section images generated with Higgsfield, plus real photos from the client's Instagram in the gallery.
 
@@ -26,6 +29,7 @@ Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a cu
 
 | Document | Location |
 |---|---|
+| Build notes and references (what was read and what was not) | [`Documentation/BUILD_NOTES.md`](Documentation/BUILD_NOTES.md) |
 | Website build plan (original plan; hosting is now GitHub Pages) | [`Documentation/WEBSITE_BUILD_PLAN.md`](Documentation/WEBSITE_BUILD_PLAN.md) |
 | Grayscale wireframes: marketing options and the booking flow | [`design/wireframes/index.html`](design/wireframes/index.html), [`design/wireframes/booking.html`](design/wireframes/booking.html) |
 | Google Drive to GitHub asset sync | [`GOOGLE_DRIVE_ASSET_SYNC_SETUP.md`](Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md), [`ASSET_WORKFLOW_QUICK_START.md`](Documentation/ASSET_WORKFLOW_QUICK_START.md), [`GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md`](Documentation/GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md), [`GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md`](Documentation/GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md) |

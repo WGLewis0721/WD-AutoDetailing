@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import { SITE } from '../data/site';
+import { icon } from '../lib/icons';
 import logo from '../assets/logo.webp';
 const { minimal = false } = Astro.props;
 ---
@@ -8,19 +9,20 @@ const { minimal = false } = Astro.props;
   <div class="wrap bar">
     <a class="brand" href="/" aria-label={SITE.name}>
       <Image src={logo} alt="" width={96} height={96} loading="eager" />
-      <span>{SITE.name}</span>
+      <span>Mirror Finish<br />Mobile Detailing</span>
     </a>
     {!minimal && (
       <nav class="nav" aria-label="Main">
         <a href="/#packages">Packages</a>
+        <a href="/#sizes">Pricing by size</a>
         <a href="/#how">How it works</a>
         <a href="/#gallery">Work</a>
-        <a href="/#areas">Areas</a>
+        <a href="/#faq">FAQ</a>
       </nav>
     )}
     <div class="actions">
-      <a class="btn btn--ghost btn--sm" href={SITE.phoneSms}>Call / Text</a>
-      {!minimal && <a class="btn btn--sm" href="/book">Book now</a>}
+      <a class="btn btn--ghost btn--sm" href={SITE.phoneSms}>{<Fragment set:html={icon('phone', 16)} />}<span>Text us</span></a>
+      {!minimal && <a class="btn btn--sm" href="/book"><span>Book now</span><Fragment set:html={icon('arrow', 16)} /></a>}
     </div>
   </div>
 </header>

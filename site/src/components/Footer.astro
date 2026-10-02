@@ -3,7 +3,16 @@ import { SITE } from '../data/site';
 ---
 <footer class="foot">
   <div class="wrap">
-    <p>© {new Date().getFullYear()} {SITE.name} (MGM) · Montgomery, AL · <a href={SITE.phoneTel}>{SITE.phoneDisplay}</a></p>
-    <p class="small">Prefer Square? <a href={SITE.bookingUrl}>Book on our Square page</a> · <a href={SITE.instagramUrl}>Instagram</a></p>
+    <div class="cols">
+      <div>
+        <p class="mark">Mirror Finish</p>
+        <p>Mobile detailing that comes to you. {SITE.tagline}.</p>
+        <p><a href={SITE.phoneTel}>{SITE.phoneDisplay}</a></p>
+      </div>
+      <div><h4>Book</h4><ul><li><a href="/book">Build my detail</a></li><li><a href="/#packages">Packages</a></li><li><a href="/#sizes">Pricing by size</a></li></ul></div>
+      <div><h4>We serve</h4><ul>{SITE.serviceArea.slice(0, 4).map((c) => <li>{c}, {SITE.region}</li>)}</ul></div>
+      <div><h4>&nbsp;</h4><ul>{SITE.serviceArea.slice(4).map((c) => <li>{c}, {SITE.region}</li>)}</ul></div>
+    </div>
+    <p class="legal">© {new Date().getFullYear()} {SITE.name} (MGM) · Montgomery, AL · Prefer Square? <a href={SITE.bookingUrl}>Book on our Square page</a> · <a href={SITE.instagramUrl}>Instagram</a></p>
   </div>
 </footer>

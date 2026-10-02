@@ -11,13 +11,13 @@ const art = (await getImage({ src: pass, width: 880, format: 'webp' })).src;
   <div class="demo" role="note">PREVIEW — sample availability, no payment is taken</div>
   <main id="main" class="book wrap">
     <div id="app" data-pass-art={art} data-home="/">
-      <nav id="stepper" class="stepper" aria-label="Booking steps"></nav>
+      <div class="progress"><div id="bar" class="barline" aria-hidden="true"><i></i></div><nav id="stepper" class="stepper" aria-label="Booking steps"></nav></div>
       <div class="layout">
         <section id="panel" class="panel" aria-live="polite"></section>
         <aside class="side" aria-label="Your build">
-          <div class="stage"><div id="viewer"></div><div id="vtag" class="vtag"></div></div>
+          <div class="stage"><div id="viewer"></div><span id="vcar" class="vcar"></span><span class="drag">Drag to rotate</span><div id="vtag" class="vtag"></div></div>
           <div id="summary" class="summary"></div>
-          <div class="nav2 only-d"><button id="back" class="btn btn--ghost" type="button" hidden>Back</button><button id="next" class="btn" type="button">Continue</button></div>
+          <div class="nav2 only-d"><button id="back" class="btn btn--ghost" type="button" hidden>Back</button><button id="next" class="btn btn--lg" type="button">Continue</button></div>
         </aside>
       </div>
       <div class="mbar"><div id="mtotal" class="tot"></div><button id="mnext" class="btn" type="button">Next</button></div>
