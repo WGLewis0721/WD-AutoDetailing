@@ -29,9 +29,11 @@ jobs:
       - run: npm ci
       - run: npx astro check
       - run: npm run build
-      - name: Book links all point to Square
+      - run: npm test
+      - name: Book buttons and contact links
         run: |
-          test "$(grep -o 'https://mirror-finish-mobile-detailing.square.site/' dist/index.html | wc -l)" -ge 5
+          test "$(grep -o 'href="/book' dist/index.html | wc -l)" -ge 5
+          grep -q 'mirror-finish-mobile-detailing.square.site' dist/index.html
           grep -q 'tel:+13346522601' dist/index.html
           ! grep -qi 'localhost' dist/index.html
       - uses: actions/upload-artifact@v4
@@ -44,6 +46,9 @@ jobs:
     if: github.ref != 'refs/heads/main'
     needs: quality
     runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -53,13 +58,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Upload preview version
+      - name: Preview needs Cloudflare secrets
+        if: env.CF_TOKEN == '' || env.CF_ACCOUNT == ''
+        run: |
+          echo "### Preview not deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Add repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to get a preview URL. The built site is attached to this run as the 'dist' artifact." >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy preview worker
+        id: preview
+        if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: site
-          command: versions upload
+          command: deploy --name mirror-finish-preview
+      - name: Show preview URL
+        if: steps.preview.outputs.deployment-url != ''
+        run: |
+          echo "### Preview ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.preview.outputs.deployment-url }}" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     if: github.ref == 'refs/heads/main'
