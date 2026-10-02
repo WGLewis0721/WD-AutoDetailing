@@ -8,7 +8,7 @@ A fast, static marketing site that sends visitors to the client's existing booki
 | Piece | Choice |
 |---|---|
 | Site | Astro (static) + TypeScript in `site/` |
-| Hosting | Cloudflare Workers (assets-only), free `*.workers.dev` first, custom domain later |
+| Hosting | GitHub Pages via GitHub Actions; custom domain later |
 | Booking and payments | Client's existing Square Appointments page (single `BOOKING_URL`) |
 | Contact | `tel:` / `sms:` links, no JavaScript needed |
 | CI/CD | GitHub Actions: check, build, preview, deploy |

@@ -4,7 +4,7 @@
 - **Content integrity:** never invent services, prices, hours, reviews or claims. Anything not confirmed by the client stays off the site.
 - **Wireframe first**, then design, then build. Written client approval at each gate.
 - **Booking stays on the client's tool.** Link to it; do not rebuild it.
-- **Client owns production accounts** (Cloudflare, Square, domain). Secrets live in GitHub, never in the repo.
+- **Client owns production accounts** (GitHub, Square, domain). Secrets live in GitHub, never in the repo.
 - **Simplest reliable mechanism.** Static site, no backend.
 - **Human approval before publishing.**
 

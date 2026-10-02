@@ -1,5 +1,7 @@
 # Plan: Mirror Finish Mobile Detailing website, live in ~2 hours
 
+> **Update:** hosting is now GitHub Pages deployed by GitHub Actions. Cloudflare is paused and removed from the repo. The Cloudflare sections below are the original plan.
+
 ## Context
 Build the real public website for Mirror Finish Mobile Detailing (Montgomery, AL). Today it is a one-page Square Online site with Square template placeholders still showing (San Francisco address, 555 phone, fake hours). The new site replaces the marketing layer and **keeps Square Appointments as the booking engine** (no new backend). Deploy: GitHub Actions to Cloudflare Workers.
 

@@ -44,7 +44,7 @@ jobs:
         with:
           path: site/dist-relative
 
-  # GitHub Pages hosts the static site. A custom domain is pointed at it from Cloudflare DNS.
+  # GitHub Pages hosts the static site; this job's run summary shows the URL.
   # One-time repo setup: Settings > Pages > Source = "GitHub Actions".
   # Branch previews also need the branch allowed under Settings > Environments > github-pages.
   deploy:

@@ -17,4 +17,4 @@
 - The logo file is square (1020x1020); sizing it as a wide banner distorts it.
 - Lazy-loaded images look blank in full-page screenshots unless you scroll first.
 - Sandbox Chromium cannot verify external TLS; test on localhost and check the live site with `curl`.
-- The generic TRA3/AWS booking template is not used for Cloudflare + Square builds.
+- The generic TRA3/AWS booking template is not used for Square-based builds.

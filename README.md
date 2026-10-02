@@ -2,7 +2,7 @@
 
 Public website for **Mirror Finish Mobile Detailing** (Montgomery, AL), built by Gray Matter.
 
-- **Stack:** Astro (static) + TypeScript, hosted on GitHub Pages and deployed by GitHub Actions. The custom domain is pointed at GitHub Pages from Cloudflare DNS. A small Cloudflare Worker for booking/payment API calls is planned for Round 2.
+- **Stack:** Astro (static) + TypeScript, hosted on GitHub Pages and deployed by GitHub Actions. The run summary shows the site URL.
 - **Booking:** stays on the existing Square Appointments site (`https://mirror-finish-mobile-detailing.square.site/`). No custom backend, no AWS.
 - **Contact:** call/text 334-652-2601.
 
@@ -19,7 +19,7 @@ The same plan and wireframes are in the client's Google Drive folder (Mirror Fin
 ## Layout
 
 ```
-site/                 Astro project + wrangler.jsonc (Cloudflare Worker, assets only)
+site/                 Astro project (static site)
 design/wireframes/    Grayscale wireframes
 Assets/               Images, logos, etc. synced from Google Drive every 5 min
 Documentation/        Plans and how-tos
@@ -35,6 +35,6 @@ npm run dev      # local preview
 npm run build    # static output in site/dist
 ```
 
-Deploy secrets (GitHub repo): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+Deploy: push to a branch or `main`; the Site CI/CD workflow builds and publishes to GitHub Pages. One-time setup: Settings > Pages > Source = GitHub Actions (and allow the branch under Settings > Environments > github-pages for branch previews).
 
-> The older `Documentation/new-client-*.md` files describe a previous AWS booking template and are being rewritten for Cloudflare + Square.
+> The older `Documentation/new-client-*.md` files describe a previous AWS booking template and describe the process; hosting is currently GitHub Pages.
