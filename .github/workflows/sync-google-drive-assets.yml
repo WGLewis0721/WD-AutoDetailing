@@ -25,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-      - name: Create sync script
+      - name: Create sync script with debug logging
         run: |
           cat > sync_drive.py << 'EOF'
           import json
@@ -36,28 +36,61 @@ jobs:
           from googleapiclient.http import MediaIoBaseDownload
           import io
 
+          print("=" * 60)
+          print("🔍 DEBUG: Starting Google Drive Asset Sync")
+          print("=" * 60)
+
           # Service account credentials from GitHub secret
           creds_json = os.environ.get('GOOGLE_API_KEY')
-          creds_dict = json.loads(creds_json)
+          if not creds_json:
+              print("❌ ERROR: GOOGLE_API_KEY secret not found!")
+              sys.exit(1)
+
+          try:
+              creds_dict = json.loads(creds_json)
+              service_account_email = creds_dict.get('client_email', 'UNKNOWN')
+              print(f"✓ Service Account: {service_account_email}")
+          except json.JSONDecodeError as e:
+              print(f"❌ ERROR: Invalid JSON in GOOGLE_API_KEY: {str(e)}")
+              sys.exit(1)
 
           # Authenticate
           credentials = Credentials.from_service_account_info(creds_dict, scopes=['https://www.googleapis.com/auth/drive'])
           drive_service = build('drive', 'v3', credentials=credentials)
+          print("✓ Google Drive API authenticated")
 
           # Folder ID from GitHub secret
           folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+          if not folder_id:
+              print("❌ ERROR: GOOGLE_DRIVE_FOLDER_ID secret not found!")
+              sys.exit(1)
+          print(f"✓ Target Folder ID: {folder_id}")
 
           # Asset subfolders to sync
           asset_types = ['Images', 'Icons', 'Photos', 'Videos', 'Logos', 'UI-Components']
-
           files_synced = 0
 
           def get_folder_id_by_name(parent_id, folder_name):
               """Get folder ID by name within parent folder"""
               query = f"'{parent_id}' in parents and name='{folder_name}' and trashed=false and mimeType='application/vnd.google-apps.folder'"
-              results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
-              items = results.get('files', [])
-              return items[0]['id'] if items else None
+              print(f"\n  📋 Query: {query}")
+              try:
+                  results = drive_service.files().list(
+                      q=query,
+                      spaces='drive',
+                      fields='files(id, name)',
+                      supportsAllDrives=True,
+                      includeItemsFromAllDrives=True,
+                      pageSize=10
+                  ).execute()
+                  items = results.get('files', [])
+                  print(f"  📊 Found {len(items)} folder(s)")
+                  if items:
+                      print(f"  ✓ Folder ID: {items[0]['id']}")
+                  return items[0]['id'] if items else None
+              except Exception as e:
+                  print(f"  ❌ Error querying folder: {str(e)}")
+                  return None
 
           def sync_folder(parent_id, local_path, folder_type):
               """Sync files from Google Drive folder to local folder"""
@@ -68,67 +101,86 @@ jobs:
 
               # Get all files in folder
               query = f"'{parent_id}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'"
-              results = drive_service.files().list(
-                  q=query,
-                  spaces='drive',
-                  fields='files(id, name, modifiedTime)',
-                  pageSize=100
-              ).execute()
+              print(f"  📋 File Query: {query}")
+              try:
+                  results = drive_service.files().list(
+                      q=query,
+                      spaces='drive',
+                      fields='files(id, name, modifiedTime, size)',
+                      supportsAllDrives=True,
+                      includeItemsFromAllDrives=True,
+                      pageSize=100
+                  ).execute()
 
-              items = results.get('files', [])
+                  items = results.get('files', [])
+                  print(f"  📊 Found {len(items)} file(s)")
 
-              if not items:
-                  print(f"  No files found in {folder_type}")
-                  return
+                  if not items:
+                      print(f"  ℹ️  No files in {folder_type}")
+                      return
 
-              for item in items:
-                  try:
-                      file_path = os.path.join(local_path, item['name'])
+                  for item in items:
+                      try:
+                          file_path = os.path.join(local_path, item['name'])
+                          print(f"    ↓ Downloading: {item['name']} ({item.get('size', 'unknown')} bytes)")
 
-                      # Download file
-                      request = drive_service.files().get_media(fileId=item['id'])
-                      file_handler = io.BytesIO()
-                      downloader = MediaIoBaseDownload(file_handler, request)
+                          # Download file
+                          request = drive_service.files().get_media(fileId=item['id'])
+                          file_handler = io.BytesIO()
+                          downloader = MediaIoBaseDownload(file_handler, request)
 
-                      done = False
-                      while not done:
-                          status, done = downloader.next_chunk()
+                          done = False
+                          while not done:
+                              status, done = downloader.next_chunk()
 
-                      # Write to disk
-                      with open(file_path, 'wb') as f:
-                          f.write(file_handler.getvalue())
+                          # Write to disk
+                          with open(file_path, 'wb') as f:
+                              f.write(file_handler.getvalue())
 
-                      files_synced += 1
-                      print(f"  ✓ Synced: {item['name']}")
+                          files_synced += 1
+                          print(f"    ✓ Saved: {file_path}")
 
-                  except Exception as e:
-                      print(f"  ✗ Error syncing {item['name']}: {str(e)}")
+                      except Exception as e:
+                          print(f"    ❌ Error syncing {item['name']}: {str(e)}")
+              except Exception as e:
+                  print(f"  ❌ Error listing files: {str(e)}")
 
           # Ensure Assets folder exists locally
+          print("\n📂 Creating local Assets folder...")
           if not os.path.exists('Assets'):
               os.makedirs('Assets')
+          print("✓ Local Assets folder ready")
 
           # Get Assets folder ID from Gray Matter LLC
+          print(f"\n🔍 Looking for 'Assets' folder in parent {folder_id}...")
           assets_folder_id = get_folder_id_by_name(folder_id, 'Assets')
 
           if not assets_folder_id:
-              print("ERROR: Assets folder not found in Gray Matter LLC folder")
+              print("❌ ERROR: Assets folder not found!")
+              print("   - Verify Gray Matter LLC folder is shared with service account")
+              print("   - Verify Assets subfolder exists")
               sys.exit(1)
 
-          print(f"Found Assets folder: {assets_folder_id}\n")
+          print(f"\n✅ Found Assets folder: {assets_folder_id}\n")
 
           # Sync each asset type
+          print("=" * 60)
+          print("🔄 Syncing Asset Types")
+          print("=" * 60)
           for asset_type in asset_types:
+              print(f"\n📦 Processing {asset_type}...")
               type_folder_id = get_folder_id_by_name(assets_folder_id, asset_type)
 
               if type_folder_id:
-                  print(f"Syncing {asset_type}...")
+                  print(f"  ✓ Found {asset_type} folder")
                   local_path = f'Assets/{asset_type}'
                   sync_folder(type_folder_id, local_path, asset_type)
               else:
-                  print(f"Skipping {asset_type} - folder not found")
+                  print(f"  ⚠️  Skipping {asset_type} - folder not found")
 
-          print(f"\n✓ Sync complete! {files_synced} files synced.")
+          print("\n" + "=" * 60)
+          print(f"✅ Sync complete! {files_synced} files synced.")
+          print("=" * 60)
           EOF
 
           python sync_drive.py
