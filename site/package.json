@@ -1,0 +1,23 @@
+{
+  "name": "mirror-finish-mobile-detailing",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "deploy": "wrangler deploy",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/sitemap": "^3.7.4",
+    "astro": "^7.3.5",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}

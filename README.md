@@ -1,157 +1,40 @@
-# Mirror Finish Mobile Detailing (MFMD-MGM)
+# Mirror Finish Mobile Detailing - Website
 
-A TRA3 booking automation system for **Mirror Finish Mobile Detailing** in Montgomery, AL.
+Public website for **Mirror Finish Mobile Detailing** (Montgomery, AL), built by Gray Matter.
 
-**Client:** Mirror Finish Mobile Detailing  
-**Repo:** [WD-AutoDetailing](https://github.com/WGLewis0721/WD-AutoDetailing)  
-**Payment Processor:** Square Appointments + Payments  
-**Build Status:** In Progress  
+- **Stack:** Astro (static) + TypeScript, hosted as an assets-only Cloudflare Worker, deployed by GitHub Actions.
+- **Booking:** stays on the existing Square Appointments site (`https://mirror-finish-mobile-detailing.square.site/`). No custom backend, no AWS.
+- **Contact:** call/text 334-652-2601.
 
----
+## Project documents
 
-## Quick Start
+| Document | Location |
+|---|---|
+| Website build plan (architecture, timeline, gates, CI/CD, risks) | [`Documentation/WEBSITE_BUILD_PLAN.md`](Documentation/WEBSITE_BUILD_PLAN.md) |
+| Wireframes, 3 grayscale options (open in a browser) | [`design/wireframes/index.html`](design/wireframes/index.html) (copy: [`Documentation/WEBSITE_WIREFRAMES.html`](Documentation/WEBSITE_WIREFRAMES.html)) |
+| Google Drive to GitHub asset sync | [`Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md`](Documentation/GOOGLE_DRIVE_ASSET_SYNC_SETUP.md), [`ASSET_WORKFLOW_QUICK_START.md`](Documentation/ASSET_WORKFLOW_QUICK_START.md), [`GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md`](Documentation/GOOGLE_DRIVE_SYNC_LESSONS_LEARNED.md), [`GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md`](Documentation/GOOGLE_DRIVE_SYNC_SETUP_CHECKLIST.md) |
 
-1. **Read the full instructions:** Open [`MFMD-MGM-PROJECT-INSTRUCTIONS.md`](./MFMD-MGM-PROJECT-INSTRUCTIONS.md)
-2. **Run Week 1 checklist:** Client discovery, AWS setup, secrets management
-3. **Week 2–4:** Frontend build, Lambda webhooks, testing & launch
+The same plan and wireframes are in the client's Google Drive folder (Mirror Finish Mobile Detailing MGM - Website Design).
 
----
-
-## Services & Pricing
-
-| Service | Price | Deposit |
-|---------|-------|---------|
-| Exterior Detail | $140 | $70 |
-| Interior Detail | $175 | $87.50 |
-| Full Detail | $220 | $110 |
-| Add-Ons | +$60–$80 | +50% |
-
-**All services require 50% deposit at booking.**
-
----
-
-## System Architecture
+## Layout
 
 ```
-Customer Books → Square Appointments API → Lambda Webhook → DynamoDB
-                                         ↓
-                         SMS Notification (SNS → Twilio)
+site/                 Astro project + wrangler.jsonc (Cloudflare Worker, assets only)
+design/wireframes/    Grayscale wireframes
+Assets/               Images, logos, etc. synced from Google Drive every 5 min
+Documentation/        Plans and how-tos
+.github/workflows/    Drive sync (and, once built, site CI/deploy)
 ```
 
-### AWS Resources (Prod Environment)
-- **Lambda:** booking-webhook, sms-notifier, reminder-schedule
-- **DynamoDB:** bookings, customers
-- **SNS:** SMS notifications
-- **API Gateway:** HTTPS endpoint for Square webhooks
-- **Naming:** `tra3-mfmd-prod-*`
+## Develop
 
----
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| [`MFMD-MGM-PROJECT-INSTRUCTIONS.md`](./MFMD-MGM-PROJECT-INSTRUCTIONS.md) | **START HERE** — Complete architecture, pricing, AWS resources, build gotchas, week-by-week roadmap, checklists |
-| `frontend/` | React/Vite site + Square booking widget |
-| `lambda/` | Node.js functions (webhook handler, SMS notifier) |
-| `terraform/` | Infrastructure-as-code (DynamoDB, Lambda, SNS, API Gateway) |
-| `.github/workflows/deploy.yml` | GitHub Actions CI/CD pipeline |
-
----
-
-## Build Phases
-
-### Phase 1: Foundation (Weeks 1–4)
-- AWS infrastructure provisioning
-- Frontend + booking widget
-- Lambda webhooks + SMS notifications
-- Launch to production
-
-### Phase 2: Enhancements (Post-Launch)
-- Custom form fields (vehicle color, priority)
-- Business admin dashboard (view bookings, manage cancellations)
-- Automated invoice generation
-
-### Phase 3: Integration (Future)
-- Google Calendar sync for technician schedules
-- Customer portal (reschedule, view history)
-- Payment recovery (automated invoice for balance due)
-
----
-
-## Development Workflow
-
-### Local Setup
 ```bash
-cd frontend && npm install
-cd ../lambda && npm install
-terraform init
+cd site
+npm install
+npm run dev      # local preview
+npm run build    # static output in site/dist
 ```
 
-### Deploy
-```bash
-# Test
-npm test
+Deploy secrets (GitHub repo): `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 
-# Lambda local testing
-sam local start-api
-
-# Deploy to AWS
-terraform apply
-github Actions → automated on push to main
-```
-
-### Testing Gates (Before Merge)
-- [ ] Unit tests pass
-- [ ] Lambda tested locally
-- [ ] No secrets in code
-- [ ] IAM policies least-privilege
-- [ ] SMS format validated
-- [ ] DynamoDB schema matches
-
----
-
-## Known Gotchas
-
-**See [`MFMD-MGM-PROJECT-INSTRUCTIONS.md`](./MFMD-MGM-PROJECT-INSTRUCTIONS.md#build-gotchas-hard-won) for detailed gotchas:**
-
-1. **Lambda:** Cold starts, dependency errors — use layers
-2. **DynamoDB:** Throttling on high volume — use on-demand billing initially
-3. **Square:** Webhook signature validation, credential storage
-4. **SNS→Twilio:** Manual subscription step (can't automate)
-5. **SMS:** Phone number format (E.164), no null values
-
----
-
-## Post-Launch Monitoring
-
-### CloudWatch Dashboard
-Monitor daily (first month):
-- Lambda invocation count & duration
-- Lambda error rate (target: 0%)
-- DynamoDB consumed capacity
-- SNS message publishing
-- API Gateway 4XX/5XX errors
-
-### Alert Thresholds
-- Lambda errors > 5% → page on-call
-- DynamoDB throttle events > 0 → scale capacity
-- API Gateway 5XX > 10/hour → check logs
-
----
-
-## Support
-
-**New to TRA3 booking builds?** Start with the instructions file above.
-
-**Specific issue?** Reference sections:
-- Architecture → `MFMD-MGM-PROJECT-INSTRUCTIONS.md#architecture-overview`
-- AWS Setup → `MFMD-MGM-PROJECT-INSTRUCTIONS.md#aws-resources-prod-environment`
-- Troubleshooting → `MFMD-MGM-PROJECT-INSTRUCTIONS.md#build-gotchas-hard-won`
-- Pre-Launch → `MFMD-MGM-PROJECT-INSTRUCTIONS.md#pre-launch-checklist`
-
----
-
-**Status:** Ready for Phase 1 build  
-**Last Updated:** 2026-10-02  
-**Built by:** Gray Matter Web Studio
+> The older `Documentation/new-client-*.md` files describe a previous AWS booking template and are being rewritten for Cloudflare + Square.
