@@ -27,6 +27,7 @@ jobs:
 
       - name: Create sync script with debug logging
         run: |
+          echo "Creating sync_drive.py script..."
           cat > sync_drive.py << 'EOF'
           import json
           import os
@@ -183,7 +184,13 @@ jobs:
           print("=" * 60)
           EOF
 
-          python sync_drive.py
+          echo "✅ Script created successfully"
+          echo "=================================="
+          echo "🚀 Running sync script..."
+          echo "=================================="
+          python -u sync_drive.py || { echo "❌ Script failed"; exit 1; }
+          echo "=================================="
+          echo "✅ Script completed"
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
