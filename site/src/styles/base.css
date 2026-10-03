@@ -68,11 +68,20 @@ p { margin: 0 0 var(--s4); text-wrap: pretty; }
 .brand { display: flex; align-items: center; gap: var(--s3); text-decoration: none; font-weight: 700; line-height: 1.1; font-size: var(--fs-sm); letter-spacing: .02em; }
 .brand img { width: 44px; height: 44px; border-radius: 12px; }
 .nav { display: none; gap: var(--s6); margin-left: auto; }
-.nav a { text-decoration: none; font-weight: 600; font-size: var(--fs-sm); color: var(--muted); position: relative; padding: var(--s2) 0; }
+.nav a { white-space: nowrap; text-decoration: none; font-weight: 600; font-size: var(--fs-sm); color: var(--muted); position: relative; padding: var(--s2) 0; }
 .nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform var(--t) var(--ease); }
 .nav a:hover { color: var(--black); }
 .nav a:hover::after { transform: scaleX(1); }
 .top .actions { display: flex; gap: var(--s2); margin-left: auto; }
+/* Candy-bar phones and foldable cover screens: keep the bar on one row. "Text us" becomes an icon button
+   (its label stays for screen readers); under 360px the logo mark carries the brand on its own. */
+@media (max-width: 479px) {
+  .top .bar { gap: var(--s3); min-height: 64px; }
+  .brand span { font-size: var(--fs-xs); white-space: nowrap; }
+  .top .actions .btn--ghost { width: var(--tap); padding-inline: 0; justify-content: center; }
+  .top .actions .btn--ghost span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (max-width: 359px) { .brand span { display: none; } }
 .foot { background: var(--black); color: var(--muted-on-dark); padding: var(--s8) 0 var(--s9); }
 .foot a { color: var(--white); text-decoration-color: var(--gold); text-underline-offset: 4px; }
 .foot h4 { margin: 0 0 var(--s3); color: var(--white); font: 700 var(--fs-xs)/1 var(--font); letter-spacing: .16em; text-transform: uppercase; }
@@ -81,13 +90,24 @@ p { margin: 0 0 var(--s4); text-wrap: pretty; }
 .foot .legal { border-top: 1px solid var(--line-dark); padding-top: var(--s5); font-size: var(--fs-sm); }
 .foot .mark { font-family: var(--font-display); font-size: 2.2rem; color: var(--white); line-height: 1; margin-bottom: var(--s3); }
 
+/* Vehicle stage (home size finder and booking): a fixed driveway plate with the size-class car on top.
+   The car eases out, then the next one eases in and settles from a slight offset, as if pulling up. */
+.vplate, .vstill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.vstill { opacity: 0; transform: translateX(1.2%); transition: opacity .32s var(--ease), transform .5s var(--ease); }
+.vstill.on { opacity: 1; transform: none; }
+.vstill.off { opacity: 0; transform: translateX(-1.2%); transition-duration: .2s, .3s; }
+
 /* Reveal on scroll: visible by default, only hidden once JS has marked the page */
 .js .reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--d, 0ms); }
 .js .reveal.in { opacity: 1; transform: none; }
 
-@media (min-width: 860px) {
+/* The full nav needs ~1000px; below that (tablets, unfolded foldables) the bar keeps just Text us and Book now. */
+@media (min-width: 1024px) {
   .nav { display: flex; }
   .top .actions { margin-left: var(--s4); }
+}
+.top .actions .btn { white-space: nowrap; }
+@media (min-width: 860px) {
   .section { padding: 8rem 0; }
   .foot { padding-bottom: var(--s7); }
   .foot .cols { grid-template-columns: 1.4fr 1fr 1fr 1fr; }

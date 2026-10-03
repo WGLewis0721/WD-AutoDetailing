@@ -71,3 +71,25 @@ Higgsfield (`gpt_image_2_5`) generated the hero, paint close-up, interior and De
 - **Vehicle renders on one plate.** Each Higgsfield edit had re-rendered the driveway slightly differently; the hatchback's background matched the sedan's at only 0.73 SSIM. That made the house shift during a crossfade.
   - **Fix:** each render is now aligned to the clean 4K plate (ORB features + homography). Its car and shadow are masked from the difference and composited back onto that one plate.
   - **Result:** backgrounds now match at 0.996 or better, so only the car changes.
+
+## Round 5 (whole-car hero film, layout for every screen, vehicle switching)
+- **Hero film, v2.** The 8-second fender macro was replaced by an 18-second, 9-shot loop of the whole car, built from the client's five reference reels (196 shots analysed: the reels change angle every ~2s and cover exterior, interior and a reveal).
+  - **Exterior (10s):** foam cannon wide shot, wheel brush, mitt stripe through the foam on the hood, rinse sheeting off the door, low glamour shot of the front.
+  - **Interior (8s):** steam on the steering wheel, a detail brush in the vents, vacuum lines in the carpet, a leather seat wipe, then the clean SUV in the driveway.
+  - **The loop** closes on a match cut: the clean SUV in the driveway, then the same angle covered in foam.
+- **Obsessive consistency.** Every shot uses the same black SUV (`suv-standard`, the size-picker render), the same mid-century driveway plate, and one detailer: a Black man with deeply melanated skin, black long-sleeve shirt and nitrile gloves. Two 2K anchor keyframes (exterior `5ffb2430`, interior `7d1b755c`) were made with GPT Image 2.5 from the size-picker car, the driveway plate and the site's interior image, then fed to Seedance 2.5 as references.
+  - **Drafts:** exterior `5e767057` was rejected for fake tire lettering and the detailer at the frame edge, then `a90429e3` was approved. Interior `4dbd4f26` was approved first time.
+  - **Finals:** exterior `d3394a73` and interior `4470688d`, both at 1080p, 16:9.
+  - **Post fix:** faint embossed lettering on one tire sidewall (wheel shot, 1.8 to 4.0s) was softened in post with a feathered blur, so it reads as depth of field.
+  - **Spend:** about 300 credits (keyframes 11, drafts 81, finals 216).
+- **Encoding.** `site/scripts/encode-hero-loop.sh exterior.mp4 interior.mp4` joins the films and writes a 1920x1080 VP9 WebM (4.2 MB) and H.264 MP4 (4.8 MB, faststart, no audio track), plus the poster.
+- **Hero layout by screen shape, not device.** One stylesheet covers desktops, tablets, foldables (inner and cover screens) and candy-bar phones.
+  - **Wider than ~1.15:1** (desktop, landscape tablet, unfolded foldable in landscape, landscape phone): the film fills the hero. The headline and price form sit over a left-hand scrim sized to the copy column.
+  - **Portrait shapes:** the film is an edge-to-edge band (square on phones, 4:3 on portrait tablets and unfolded foldables) with the headline over its lower edge. The lead, form and trust list follow on white.
+  - **Header:** the full nav shows from 1024px. Below 480px, "Text us" becomes an icon button. Below 360px (foldable cover screens), the logo mark carries the brand.
+  - **Verified** at 1440x900, 1024x768, 768x1024, 882x736, 736x882, 344x882 and 390x844: the film plays in every one, and none scrolls sideways.
+- **Vehicle switching.** The flash when changing body style came from fading a whole new photo over the old one: for half a second both cars showed through each other. Now:
+  - the driveway is one fixed layer;
+  - each size class is a transparent cut-out of the car and its shadow (`public/models/<key>-car[@2x].webp`), aligned to that driveway;
+  - the old car eases out, and 150 ms later the new one eases in and settles from a 1% offset;
+  - this applies on the home size finder and in booking, verified frame by frame.

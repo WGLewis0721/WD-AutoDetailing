@@ -4,7 +4,7 @@ Public website and booking app for **Mirror Finish Mobile Detailing** (Montgomer
 
 Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a custom domain will be pointed at it later).
 
-## What is built (Rounds 1 to 4)
+## What is built (Rounds 1 to 5)
 
 - **Marketing site** (`/`): white-dominant design with black bands and gold accents (60 / 30 / 10). Hero, packages, vehicle-size pricing, add-ons, how it works, recent work, service area, "not ready yet" options, and a sticky Book bar on mobile. Every Book button goes to `/book`.
 - **Booking app** (`/book`): five steps with a live summary.
@@ -14,8 +14,9 @@ Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a cu
   4. **Details:** name, phone, email and service address.
   5. **Deposit:** review and book, then a confirmation with a shareable **Detail Pass**, add-to-calendar file, a reward card and "keep exploring" options.
 - **Multi-car orders:** add up to 4 cars to one order. Each car has its own vehicle, package and add-ons; the deposit is 20% of the grand total; scheduling shows only start times where the whole order fits in working hours (one detailer, back to back).
-- **Vehicle renders:** 11 photoreal size classes generated with Higgsfield and composited onto one shared driveway plate, so switching vehicles only changes the car. They crossfade without flicker on the home page and in booking.
-- **Hero loop:** a silent, seamless 8-second Seedance 2.5 film (dark pavilion, wheel brush, snow foam, rinse, towel dry) at 1080p. It plays muted, starts only when the hero is on screen, and shows a matching still under reduced motion or Save-Data. One square master is cropped by CSS to the 4:5 desktop frame and the 4:3 phone frame, portrait or landscape.
+- **Vehicle renders:** 11 photoreal size classes generated with Higgsfield and composited onto one shared driveway plate, so switching vehicles only changes the car. Only the car changes when you switch: the driveway is a fixed layer and the car cut-outs ease out and in.
+- **Hero film:** a silent, seamless 18-second loop (9 shots, exterior and interior) of the same SUV, driveway and detailer used across the site, made with Seedance 2.5 at 1080p. It plays muted, only while on screen, and shows a matching still under reduced motion or Save-Data.
+- **Every screen shape:** on landscape screens the film fills the hero behind the headline and price form; on portrait phones, tablets and foldables it is an edge-to-edge band with the headline on it. Checked on desktop, tablets, foldable inner and cover screens, and standard phones.
 - **Polish:** serif display type, instant-price quick start on the home page, animated totals, step transitions, FAQ, scroll reveals that respect reduced motion.
 - **Design system:** one tokens file, a small set of shared components, and a build check (`npm run check:tokens`) that fails if a colour is hard-coded outside the tokens.
 - **Imagery:** hero and section images generated with Higgsfield, plus real photos from the client's Instagram in the gallery.

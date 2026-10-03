@@ -1,43 +1,29 @@
 #!/usr/bin/env bash
-# Turns the square Higgsfield master into the hero loop files.
-#   usage: scripts/encode-hero-loop.sh master.mp4
-# 1. Closes the loop. The Seedance take opens on the keyframe for a single frame, then cuts to the wheel;
-#    that flash frame is dropped (HEAD frames) so the calm empty-fender ending cuts cleanly into the empty
-#    wheel opening, the same editorial cut the clip already uses inside. SEAM>0 instead dissolves the
-#    last SEAM seconds into the opening (only for takes whose two ends share a composition).
-# 2. Keeps the square framing; the page crops it with object-fit/object-position, so the video and its
-#    poster line up exactly in the 4:5 desktop frame, the 4:3 phone frame and anything in between.
-# 3. Encodes silent H.264 MP4 (+faststart) and VP9 WebM at each of SIZES: 2048 fills the full-bleed hero on
-#    desktop and landscape phones, 1080 serves the framed card on portrait phones. Poster at the largest size.
+# Builds the hero loop from the Higgsfield films, in order.
+#   usage: scripts/encode-hero-loop.sh exterior.mp4 interior.mp4 [...]
+# 1. Joins the films end to end. The interior film ends on the clean SUV in the driveway, which cuts back to
+#    the same wide angle covered in foam at the top of the exterior film, so the loop closes on a shot change
+#    like every other cut in it.
+# 2. Keeps the 16:9 master; the page crops it with object-fit (centred), so the video and its poster line up in
+#    every hero shape: full-bleed on desktop, tablets and unfolded foldables, a square band on phones.
+# 3. Encodes silent VP9 WebM and H.264 MP4 (+faststart, no audio track) at 1920x1080, plus a poster from the
+#    first frame.
 set -euo pipefail
-src=${1:?master video}
-SEAM=${SEAM:-0}
-SIZES=${SIZES:-2048 1080}
-MAX=${SIZES%% *}
-HEAD=${HEAD:-1}
+[ $# -ge 1 ] || { echo "usage: $0 film.mp4 [film.mp4 ...]" >&2; exit 1; }
 out=src/assets/video
 mkdir -p "$out"
 tmp=$(mktemp -d)
-D=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$src")
-OFF=$(echo "$D - 2*$SEAM - $HEAD/24" | bc -l)
-
-if [ "$SEAM" = 0 ]; then
-  ffmpeg -loglevel error -y -i "$src" -vf "trim=start_frame=$HEAD,setpts=PTS-STARTPTS,scale=$MAX:$MAX:flags=lanczos,setsar=1,format=yuv420p" \
-    -an -c:v libx264 -crf 10 -preset slow "$tmp/loop.mp4"
-else
-  ffmpeg -loglevel error -y -i "$src" -filter_complex \
-    "[0:v]trim=start_frame=$HEAD,setpts=PTS-STARTPTS,scale=$MAX:$MAX:flags=lanczos,setsar=1,fps=24,split[x][y];\
-     [x]trim=start=$SEAM,setpts=PTS-STARTPTS[a];[y]trim=end=$SEAM,setpts=PTS-STARTPTS[b];\
-     [a][b]xfade=transition=fade:duration=$SEAM:offset=$OFF,format=yuv420p" \
-    -an -c:v libx264 -crf 10 -preset slow "$tmp/loop.mp4"
-fi
-
-for s in $SIZES; do
-  ffmpeg -loglevel error -y -i "$tmp/loop.mp4" -vf "scale=$s:$s:flags=lanczos" -an \
-    -c:v libx264 -profile:v high -pix_fmt yuv420p -crf ${CRF:-22} -preset veryslow -tune film -g 48 -movflags +faststart "$out/hero-loop-$s.mp4"
-  ffmpeg -loglevel error -y -i "$tmp/loop.mp4" -vf "scale=$s:$s:flags=lanczos" -an \
-    -c:v libvpx-vp9 -crf ${VP9CRF:-34} -b:v 0 -row-mt 1 -deadline good -cpu-used 1 -g 48 "$out/hero-loop-$s.webm"
+inputs=(); chains=""; labels=""
+for i in $(seq 0 $(($# - 1))); do
+  inputs+=(-i "${@:$((i + 1)):1}")
+  chains+="[$i:v]scale=1920:1080:flags=lanczos,setsar=1,fps=24,format=yuv420p[v$i];"
+  labels+="[v$i]"
 done
+ffmpeg -loglevel error -y "${inputs[@]}" -filter_complex "${chains}${labels}concat=n=$#:v=1:a=0[v]" -map "[v]" -an \
+  -c:v libx264 -crf 8 -preset slow "$tmp/loop.mp4"
+
+ffmpeg -loglevel error -y -i "$tmp/loop.mp4" -an -c:v libvpx-vp9 -crf ${VP9CRF:-36} -b:v 0 -row-mt 1 -deadline good -cpu-used 1 -g 48 "$out/hero-loop.webm"
+ffmpeg -loglevel error -y -i "$tmp/loop.mp4" -an -c:v libx264 -profile:v high -pix_fmt yuv420p -crf ${CRF:-24} -preset veryslow -tune film -g 48 -movflags +faststart "$out/hero-loop.mp4"
 ffmpeg -loglevel error -y -i "$tmp/loop.mp4" -frames:v 1 -q:v 2 src/assets/hero-loop-poster.jpg
 rm -rf "$tmp"
 ls -la "$out" src/assets/hero-loop-poster.jpg
