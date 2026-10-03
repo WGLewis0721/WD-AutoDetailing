@@ -76,8 +76,8 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
         </div>
         <div class="hero-art reveal" style="--d:200ms">
           <div class="hero-frame">
-            <Image class="hero-img" src={heroPoster} alt="The black wheel and fender of a glossy SUV under a band of light" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" fetchpriority="high" />
-            {/* Silent loop over the still. Nothing loads until the script decides motion is welcome (not reduced-motion, not Save-Data). */}
+            <Image class="hero-img" src={heroPoster} alt="The black wheel and fender of a glossy SUV under a band of light" widths={[720, 1080, 1600, 2048]} sizes="100vw" loading="eager" fetchpriority="high" />
+            {/* Silent loop over the still: Nothing loads until the script decides motion is welcome (not reduced-motion, not Save-Data). */}
             <video class="hero-vid" id="herovid" muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1">
               <source src={loop1080Webm} type="video/webm" />
               <source src={loop1080Mp4} type="video/mp4" />
@@ -443,5 +443,29 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       .sticky { display: none; }
     }
     @media (max-width: 899px) { .foot { padding-bottom: 110px; } .hero-img { aspect-ratio: 4 / 3; } }
+    /* Wide screens (desktop, landscape phones): the loop fills the whole hero and the copy sits over it.
+       The film is mirrored so the wheel and the detailer's hand work on the right, away from the headline,
+       and a gradient from the left keeps the type readable. Portrait phones keep the framed card above. */
+    @media (min-width: 900px), (orientation: landscape) and (min-width: 600px) {
+      .hero { position: relative; isolation: isolate; display: grid; align-items: center; min-height: clamp(34rem, calc(100svh - 72px), 56rem); padding: var(--s8) 0; background: var(--black); color: var(--white); }
+      .hero-grid { grid-template-columns: minmax(0, 38rem); }
+      .hero-copy { position: relative; z-index: 1; }
+      .hero-art { position: absolute; inset: 0; z-index: 0; }
+      .hero-frame { position: absolute; inset: 0; border-radius: 0; box-shadow: none; }
+      .hero-frame .hero-img, .hero-vid { width: 100%; height: 100%; aspect-ratio: auto; transform: scaleX(-1); --hero-focus: 50% 62%; }
+      .hero-frame::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(90deg, var(--scrim-dark-strong) 0%, var(--scrim-dark) 38%, transparent 66%),
+                    linear-gradient(0deg, var(--scrim-dark) 0%, transparent 28%); }
+      .hero h1 em { color: var(--gold-hi); }
+      .hero .kicker { color: var(--white); }
+      .hero .lead { color: var(--muted-on-dark); }
+      .hero .trust { color: var(--white); }
+      .hero .trust .ic { color: var(--gold); }
+      .quick { color: var(--black); box-shadow: var(--shadow); }
+      /* Chips pin to the right edge of the content column. */
+      .float { --edge: max(var(--s5), calc((100vw - var(--max)) / 2 + var(--s5))); color: var(--black); }
+      .f1 { top: var(--s6); right: var(--edge); }
+      .f2 { top: auto; left: auto; bottom: var(--s6); right: var(--edge); }
+    }
   </style>
 </Base>
