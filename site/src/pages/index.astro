@@ -8,7 +8,9 @@ import { packages, sizes, extras } from '../data/menu';
 import { fmt } from '../lib/pricing';
 import { icon } from '../lib/icons';
 import { bodyStyles, makes } from '../lib/vehicles';
-import hero from '../assets/hf-hero.png';
+import heroPoster from '../assets/hero-loop-poster.jpg';
+import loop1080Mp4 from '../assets/video/hero-loop-1080.mp4';
+import loop1080Webm from '../assets/video/hero-loop-1080.webm';
 import paint from '../assets/hf-paint.png';
 import interior from '../assets/hf-interior.png';
 import g1 from '../assets/ig_04.jpg';
@@ -73,7 +75,15 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
           </ul>
         </div>
         <div class="hero-art reveal" style="--d:200ms">
-          <div class="hero-frame"><Image class="hero-img" src={hero} alt="Glossy black SUV with a mirror-finish detail" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" fetchpriority="high" /><span class="shine" aria-hidden="true"></span></div>
+          <div class="hero-frame">
+            <Image class="hero-img" src={heroPoster} alt="The black wheel and fender of a glossy SUV under a band of light" widths={[480, 720, 1000]} sizes="(min-width: 900px) 520px, 100vw" loading="eager" fetchpriority="high" />
+            {/* Silent loop over the still. Nothing loads until the script decides motion is welcome (not reduced-motion, not Save-Data). */}
+            <video class="hero-vid" id="herovid" muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true" tabindex="-1">
+              <source src={loop1080Webm} type="video/webm" />
+              <source src={loop1080Mp4} type="video/mp4" />
+            </video>
+            <span class="shine" aria-hidden="true"></span>
+          </div>
           <div class="float f1"><Fragment set:html={icon('pin', 18)} /><span>{SITE.serviceArea.length} towns served</span></div>
           <div class="float f2"><small>Deluxe detail from</small><b class="num">{fmt(packages[0].cents)}</b></div>
         </div>
@@ -205,6 +215,18 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
   <div class="sticky" role="region" aria-label="Quick actions"><a class="btn" href="/book"><span>Build my detail</span><Fragment set:html={icon('arrow', 18)} /></a><a class="btn btn--dark" href={SITE.phoneSms}>Text us</a></div>
 
   <script>
+    /* Hero loop: starts only when motion is welcome, fades in over the matching still once frames are flowing, and pauses off-screen.
+       The file is square; CSS crops it (and the still, identically) to whatever shape the frame has. */
+    const vid = document.getElementById('herovid') as HTMLVideoElement | null;
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+    if (vid && !saveData && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let inView = false;
+      const play = () => { if (inView) vid.play().catch(() => {}); };
+      vid.preload = 'auto';
+      vid.addEventListener('playing', () => vid.classList.add('on'));
+      new IntersectionObserver(([e]) => { inView = e.isIntersecting; if (inView) play(); else vid.pause(); }).observe(vid);
+    }
+
     import { modelsFor } from '../lib/vehicles';
     const form = document.getElementById('quick') as HTMLFormElement | null;
     if (form) {
@@ -302,11 +324,14 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     h1 .kicker { display: flex; font-family: var(--font); line-height: 1.4; margin-bottom: var(--s5); }
     .hero-art { position: relative; }
     .hero-frame { position: relative; overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-    .hero-frame .hero-img { border-radius: 0; box-shadow: none; animation: drift 16s ease-in-out infinite alternate; transform-origin: 60% 60%; }
+    .hero-frame .hero-img { border-radius: 0; box-shadow: none; }
+    /* The poster and the video share one crop so the hand-off is invisible: 4:5 on desktop, 4:3 on phones, square source. */
+    .hero-frame .hero-img, .hero-vid { object-fit: cover; object-position: var(--hero-focus, 50% 50%); }
+    .hero-vid { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .6s var(--ease); }
+    .hero-vid.on { opacity: 1; }
     /* The loop: a band of light crosses the paint every few seconds, like a reflection moving over a polished panel. */
     .shine { position: absolute; inset: -20% -60%; background: linear-gradient(100deg, transparent 42%, var(--shine-soft) 47%, var(--shine) 50%, var(--shine-soft) 53%, transparent 58%); transform: translateX(-60%); animation: sweep 6.5s cubic-bezier(.4, 0, .2, 1) infinite; mix-blend-mode: screen; pointer-events: none; }
     @keyframes sweep { 0%, 18% { transform: translateX(-60%); } 62%, 100% { transform: translateX(60%); } }
-    @keyframes drift { from { transform: scale(1); } to { transform: scale(1.07); } }
     @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-7px); } }
     .float { animation: bob 4.5s ease-in-out infinite alternate; }
     .f2 { animation-delay: -2.2s; }

@@ -4,17 +4,18 @@ Public website and booking app for **Mirror Finish Mobile Detailing** (Montgomer
 
 Live site: `https://wglewis0721.github.io/WD-AutoDetailing/` (GitHub Pages; a custom domain will be pointed at it later).
 
-## What is built (Rounds 1 and 2)
+## What is built (Rounds 1 to 4)
 
 - **Marketing site** (`/`): white-dominant design with black bands and gold accents (60 / 30 / 10). Hero, packages, vehicle-size pricing, add-ons, how it works, recent work, service area, "not ready yet" options, and a sticky Book bar on mobile. Every Book button goes to `/book`.
 - **Booking app** (`/book`): five steps with a live summary.
-  1. **Vehicle:** year, make and model (about 35 makes). The size class and size charge are detected automatically, with a body-style fallback for unlisted vehicles. A simple 3D vehicle (sedan, coupe, hatchback, SUV, truck, van) shows the size.
+  1. **Vehicle:** year, make and model (about 35 makes). The size class and size charge are detected automatically, with a body-style fallback for unlisted vehicles. A photoreal render of that size class (11 classes, from hatchback to full-size van) parked in the same mid-century driveway shows the size.
   2. **Build:** choose a package (Deluxe, Exterior, Interior) and add-ons. The total, the 20% deposit and the balance update live.
   3. **When:** month calendar and time slots.
   4. **Details:** name, phone, email and service address.
   5. **Deposit:** review and book, then a confirmation with a shareable **Detail Pass**, add-to-calendar file, a reward card and "keep exploring" options.
 - **Multi-car orders:** add up to 4 cars to one order. Each car has its own vehicle, package and add-ons; the deposit is 20% of the grand total; scheduling shows only start times where the whole order fits in working hours (one detailer, back to back).
-- **3D vehicles:** six body styles generated with Higgsfield (image to 3D), shown on a showroom stage with a rotating turntable.
+- **Vehicle renders:** 11 photoreal size classes generated with Higgsfield and composited onto one shared driveway plate, so switching vehicles only changes the car. They crossfade without flicker on the home page and in booking.
+- **Hero loop:** a silent, seamless 8-second Seedance 2.5 film (dark pavilion, wheel brush, snow foam, rinse, towel dry) at 1080p. It plays muted, starts only when the hero is on screen, and shows a matching still under reduced motion or Save-Data. One square master is cropped by CSS to the 4:5 desktop frame and the 4:3 phone frame, portrait or landscape.
 - **Polish:** serif display type, instant-price quick start on the home page, animated totals, step transitions, FAQ, scroll reveals that respect reduced motion.
 - **Design system:** one tokens file, a small set of shared components, and a build check (`npm run check:tokens`) that fails if a colour is hard-coded outside the tokens.
 - **Imagery:** hero and section images generated with Higgsfield, plus real photos from the client's Instagram in the gallery.
@@ -42,7 +43,7 @@ The plan and wireframes are also in the client's Google Drive folder.
 ```
 site/                 Astro project (static site)
   src/pages           index (marketing), book (booking app), 404
-  src/lib             pricing, vehicles, 3D viewer, booking logic (+ tests)
+  src/lib             pricing, vehicles, vehicle stills, booking logic (+ tests)
   src/data            site details and the price list (single source of truth)
   src/styles          tokens.css (colours/spacing) and shared styles
 design/wireframes/    Grayscale wireframes
