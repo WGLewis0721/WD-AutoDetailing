@@ -6,8 +6,10 @@ import { bodyStyles, modelsFor } from './vehicles';
 /* The order the booking page sends to the checkout function, and the Square Payment Link request built from it.
    Same idea as the AGT site: the browser only says what was chosen; the server re-prices it from this repo's own
    price list (menu.ts) and decides each car's size from its make and model, so edited prices or a "sedan" label
-   on a truck change nothing. Square then shows every line the customer built, with the balance taken off as a
-   discount so the card is charged exactly the 20% deposit. */
+   on a truck change nothing. Packages and add-ons are sent as the real Square catalog items (so they appear in
+   Square's reports by name); size charges, which are not in the catalog, are sent as their own lines. Square then
+   shows every line the customer built, with the balance taken off as a discount so the card is charged exactly
+   the 20% deposit. */
 
 export interface CheckoutCar { year?: string; make?: string; model?: string; bodyStyle?: string; packageId: string; extraIds: string[] }
 export interface CheckoutOrder {
@@ -24,7 +26,8 @@ export interface PaymentLinkRequest {
   order: {
     location_id: string;
     reference_id: string;
-    line_items: { name: string; quantity: '1'; base_price_money: SquareMoney; note?: string }[];
+    /** Catalog lines carry catalog_object_id (Square supplies name and price); size charges are ad-hoc lines. */
+    line_items: ({ quantity: '1'; note?: string } & ({ catalog_object_id: string } | { name: string; base_price_money: SquareMoney }))[];
     discounts: { uid: string; name: string; type: 'FIXED_AMOUNT'; amount_money: SquareMoney; scope: 'ORDER' }[];
     metadata: Record<string, string>;
   };
@@ -72,6 +75,11 @@ export function priceOrder(o: CheckoutOrder): OrderQuote & { labels: string[] } 
   return { ...q, labels: resolved.map((r) => r.label) };
 }
 
+const catalogCents = new Map<string, number>([...packages, ...extras].map((x) => [x.square, x.cents]));
+/** Order total as Square will compute it: catalog price for catalog lines, the given price for ad-hoc lines. */
+export const lineTotal = (lines: PaymentLinkRequest['order']['line_items']) =>
+  lines.reduce((n, l) => n + ('catalog_object_id' in l ? catalogCents.get(l.catalog_object_id) ?? NaN : l.base_price_money.amount), 0);
+
 const timeLabel = (min: number) => `${((Math.floor(min / 60) + 11) % 12) + 1}:${String(min % 60).padStart(2, '0')} ${min < 720 ? 'AM' : 'PM'}`;
 
 export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; ref: string; siteUrl: string }): PaymentLinkRequest {
@@ -80,18 +88,15 @@ export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; r
   const multi = o.cars.length > 1;
   const line_items: PaymentLinkRequest['order']['line_items'] = [];
   o.cars.forEach((c, i) => {
-    const car = q.labels[i];
-    const tag = multi ? `Car ${i + 1}: ` : '';
+    const note = clip(multi ? `Car ${i + 1}: ${q.labels[i]}` : q.labels[i], 500);
     const pkg = packages.find((p) => p.id === c.packageId)!;
-    line_items.push({ name: clip(`${tag}${pkg.name} detail`, 500), quantity: '1', base_price_money: usd(pkg.cents), note: clip(car, 500) });
+    line_items.push({ catalog_object_id: pkg.square, quantity: '1', note });
     const size = sizes.find((s) => s.id === sizeFor(c).size)!;
-    if (size.cents > 0) line_items.push({ name: clip(`${tag}${size.name} size`, 500), quantity: '1', base_price_money: usd(size.cents), note: clip(car, 500) });
-    for (const id of c.extraIds) {
-      const e = extras.find((x) => x.id === id)!;
-      line_items.push({ name: clip(`${tag}${e.name}`, 500), quantity: '1', base_price_money: usd(e.cents), note: clip(car, 500) });
-    }
+    if (size.cents > 0) line_items.push({ name: `Vehicle size: ${size.name}`, quantity: '1', base_price_money: usd(size.cents), note });
+    for (const id of c.extraIds) line_items.push({ catalog_object_id: extras.find((x) => x.id === id)!.square, quantity: '1', note });
   });
-  const sum = line_items.reduce((n, l) => n + l.base_price_money.amount, 0);
+  // Square prices catalog lines itself; this is what it will total, using the prices menu.ts mirrors.
+  const sum = lineTotal(line_items);
   if (sum !== q.totalCents) throw new Error(`Line items (${sum}) do not match the quote (${q.totalCents})`);
 
   const when = `${o.date} ${timeLabel(o.startMin)}`;

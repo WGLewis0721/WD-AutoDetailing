@@ -12,7 +12,7 @@
      SQUARE_ENV            "sandbox" (default) or "production"
      SITE_URL              where the website lives, for the return link (default: the GitHub Pages URL)
      ALLOWED_ORIGINS       comma-separated origins allowed to call this (default: the GitHub Pages origin) */
-import { buildPaymentLink, OrderError, type CheckoutOrder } from '../site/src/lib/checkout';
+import { buildPaymentLink, lineTotal, OrderError, type CheckoutOrder } from '../site/src/lib/checkout';
 
 const SITE_URL = process.env.SITE_URL || 'https://wglewis0721.github.io/WD-AutoDetailing';
 const ORIGINS = (process.env.ALLOWED_ORIGINS || new URL(SITE_URL).origin).split(',').map((o) => o.trim()).filter(Boolean);
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     if (e instanceof OrderError) { log('order_rejected', { reason: e.message }); return json(400, { error: e.message }, origin); }
     throw e;
   }
-  const charged = body.order.line_items.reduce((n, l) => n + l.base_price_money.amount, 0) - body.order.discounts.reduce((n, d) => n + d.amount_money.amount, 0);
+  const charged = lineTotal(body.order.line_items) - body.order.discounts.reduce((n, d) => n + d.amount_money.amount, 0);
   log('order_priced', { ref, cars: order.cars.length, lines: body.order.line_items.length, deposit_cents: charged });
 
   const res = await fetch(`${SQUARE_API}/v2/online-checkout/payment-links`, {

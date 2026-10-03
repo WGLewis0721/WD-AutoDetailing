@@ -93,3 +93,27 @@ Higgsfield (`gpt_image_2_5`) generated the hero, paint close-up, interior and De
   - each size class is a transparent cut-out of the car and its shadow (`public/models/<key>-car[@2x].webp`), aligned to that driveway;
   - the old car eases out, and 150 ms later the new one eases in and settles from a 1% offset;
   - this applies on the home size finder and in booking, verified frame by frame.
+
+## Round 6 (live Square checkout, Square catalog as the price list)
+- **Same workflow as the AGT site, without AWS.** Pay sends only the customer's choices to `api/create-checkout.ts`, a Vercel function (project `mirror-finish-checkout`, Gray Matter team). It:
+  - re-prices the order from `site/src/data/menu.ts`;
+  - works out each car's size from its make and model;
+  - creates a Square Payment Link that lists every package, size charge and add-on, minus a "Balance due after your detail" discount, so the card is charged exactly the 20% deposit.
+
+  Square then returns the customer to `/book/?paid=REF`, which shows their Detail Pass. The website itself stays on GitHub Pages.
+- **Square catalog is the source of truth for prices.** It was read through the Square connector on 2026-10-03.
+  - **Price changes:** Deluxe $200, Exterior $100, Interior $100, Headlight Restoration $50. Interior Deep Treatment ($75) and Paint and Glass Decontamination ($40) already matched.
+  - **Add-ons:** Pet Hair and Stain Removal ($75) was added. Shampoo & Steam was removed, because it is not in Square.
+  - **Catalog links:** packages and add-ons go to checkout as the real catalog items, so Square reports show them by name. `checkout.test.ts` fails if `menu.ts` drifts from the catalog prices.
+- **Size charges** (+$20 small, +$40 standard, +$60 large) are not in the Square catalog. They go to checkout as their own lines named "Vehicle size: ...".
+- **Switching it on:**
+  1. Put the Square access token in the Vercel project as `SQUARE_ACCESS_TOKEN` (sensitive). The production environment is already set to use the live account, and previews use Square's test mode.
+  2. Deploy from `main`.
+  3. Set the GitHub repo variable `CHECKOUT_URL` to `https://<vercel-domain>/api/create-checkout`.
+
+  Until then the booking page stays in preview mode.
+- **Not yet built:**
+  - the paid booking does not land on the Square Appointments calendar;
+  - the times shown are still sample availability.
+
+  Next would be a Square webhook (`payment.updated`), which reads the order metadata the function writes (ref, appointment, customer, vehicles), plus real availability.

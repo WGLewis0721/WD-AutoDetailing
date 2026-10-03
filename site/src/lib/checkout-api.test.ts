@@ -59,7 +59,8 @@ describe('checkout function', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
     const sent = JSON.parse(String(init.body));
     expect(sent.order.location_id).toBe('LOC');
-    expect(sent.order.line_items.map((l: { name: string }) => l.name)).toEqual(['Deluxe detail', 'Paint & Glass Decontamination']);
+    expect(sent.order.line_items.map((l: { catalog_object_id: string }) => l.catalog_object_id)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ', 'ME7R5HV4XSEHJ4WPTUFYWXHY']);
+    expect(sent.order.line_items[0].base_price_money).toBeUndefined();
     expect(sent.idempotency_key).toBe(out.ref);
   });
 
