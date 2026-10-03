@@ -120,7 +120,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
           </div>
           <div class="fit-side">
             <div class="fit-stage" id="fitstage">
-              {bodyStyles.map((b, i) => <Image class="fit-img" data-key={b.model} src={render(b.model)} alt={b.label + ', for example ' + b.examples} widths={[480, 944]} sizes="(min-width: 900px) 760px, 100vw" loading={i === 0 ? 'eager' : 'lazy'} hidden={i !== 0} />)}
+              <Image class="vstill on" src={render("sedan")} alt="Sedan in the driveway of a mid-century modern home" widths={[800, 1600]} sizes="(min-width: 900px) 62vw, 100vw" loading="lazy" />
               <span class="fit-drag" id="fithint">Swipe to compare</span>
             </div>
             <ul class="tierbar" aria-label="Size classes and prices">
@@ -227,7 +227,8 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     }
 
     /* Size finder: the same make/model and body-style picker as the booking tool, with the 3D mesh loaded only when the section is reached. */
-    import { bodyStyles } from '../lib/vehicles';
+    import { bodyStyles, type ModelKey } from '../lib/vehicles';
+    import { createStill } from '../lib/stills';
     const fit = document.getElementById('fit');
     if (fit) {
       const fmake = document.getElementById('fmake') as HTMLSelectElement;
@@ -236,8 +237,9 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       const res = document.getElementById('fitres')!;
       const go = document.getElementById('fitgo') as HTMLAnchorElement;
       const book = fit.dataset.book ?? '/book';
+      const still = createStill(stage);
       const show = (model: string, size: string, query: string) => {
-        stage.querySelectorAll<HTMLElement>('.fit-img').forEach((i) => { i.hidden = i.dataset.key !== model; });
+        still.setModel(model as ModelKey);
         document.querySelectorAll<HTMLElement>('.tierbar li').forEach((li) => {
           const on = li.dataset.size === size; li.classList.toggle('on', on);
           if (on) res.textContent = li.dataset.price ? li.dataset.name + ': ' + li.dataset.price + ' added to any package.' : li.dataset.name + ': the package price as listed.';
@@ -263,7 +265,9 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
         const s = bodyStyles.find((x) => x.id === b.dataset.style)!;
         show(s.model, s.size, 'style=' + s.id);
       });
-      /* Touch screens skip three.js: stills swap instantly and a swipe on the stage steps through the body styles. */
+      /* A swipe on the stage steps through the body styles on touch screens. Renders preload once the section is near. */
+      const pre = new IntersectionObserver(([en]) => { if (!en.isIntersecting) return; pre.disconnect(); still.preload(bodyStyles.map((b) => b.model)); }, { rootMargin: '300px' });
+      pre.observe(stage);
       const desktop = window.matchMedia('(min-width: 900px) and (hover: hover)').matches;
       const hint = document.getElementById('fithint')!;
       if (desktop) hint.hidden = true;
@@ -346,10 +350,8 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     .pick:hover { border-color: var(--black); }
     .pick.on { border-color: var(--black); background: var(--ivory); box-shadow: inset 0 0 0 1px var(--black), 0 0 0 3px var(--gold); }
     .fit-stage { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius-lg); overflow: hidden; background: url('../assets/driveway-stage.jpg') center 60% / cover no-repeat, var(--ink-2); box-shadow: var(--shadow); }
-    .fit-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: fitin .45s var(--ease); }
-    @keyframes fitin { from { opacity: 0; } to { opacity: 1; } }
-    .fit-img[hidden] { display: none; }
-    .fit-stage.live .fit-img { display: none; }
+    .fit-stage :global(.vstill) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .5s var(--ease); }
+    .fit-stage :global(.vstill.on) { opacity: 1; }
     .fit-drag { position: absolute; top: var(--s3); right: var(--s4); color: var(--muted-on-dark); font-size: var(--fs-xs); }
     .tierbar { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
     .tierbar li { display: grid; gap: 2px; padding: var(--s3); border: 1px solid var(--line-light); border-radius: var(--radius); background: var(--white); font-size: var(--fs-xs); color: var(--muted); transition: border-color .3s var(--ease), background .3s var(--ease), color .3s var(--ease); }
@@ -403,7 +405,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       .fit-side { display: grid; gap: var(--s4); align-content: start; }
       .fit-stage, .fit-form, .tierbar, .fit-res, .fit-go { order: 0; }
       .fit-form { position: sticky; top: 100px; }
-      .fit-stage { aspect-ratio: auto; height: clamp(440px, 64vh, 760px); }
+      .fit-stage { aspect-ratio: 16 / 10; }
       .fit-chips { display: grid; grid-template-columns: repeat(2, 1fr); overflow: visible; margin: 0; padding: 0; }
       .fit-chips .pick { white-space: normal; }
       .tierbar { grid-template-columns: repeat(4, 1fr); }

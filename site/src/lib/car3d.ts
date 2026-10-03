@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { LoopSubdivision } from 'three-subdivide';
 import { modelLength, type ModelKey } from './vehicles';
 
 /* Vehicle meshes are Higgsfield image-to-3D models stored in /models/<key>.glb with a studio render <key>.webp as fallback. */
@@ -15,7 +16,6 @@ const imgUrl = (k: ModelKey) => `${BASE}models/${k}.webp`;
 /* Scene units per metre. Every mesh is scaled to its real length, so a 3-row SUV is visibly bigger than a crossover. */
 const UNITS_PER_METRE = 0.86;
 
-const cssColor = (name: string): THREE.Color => new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim());
 
 export interface Viewer { setModel(key: ModelKey | null): void; draw(): void; destroy(): void }
 export interface ViewerOptions { spin?: boolean; auto?: boolean; yaw?: number; turntable?: boolean; onReady?: (key: ModelKey) => void }
@@ -130,7 +130,8 @@ export function createViewer(host: HTMLElement, opts: ViewerOptions = {}): Viewe
       const mesh = o as THREE.Mesh;
       const m = mesh.material as THREE.MeshStandardMaterial | undefined;
       if (!m || !m.map) return;
-      mesh.geometry = toCreasedNormals(mesh.geometry, Math.PI / 2.4);
+      /* One Loop subdivision pass rounds off the low-poly silhouette before the normals are smoothed. */
+      mesh.geometry = toCreasedNormals(LoopSubdivision.modify(mesh.geometry, 1, { split: true, uvSmooth: false, preserveEdges: false, flatOnly: false }), Math.PI / 2.4);
       m.map.anisotropy = aniso;
       mesh.material = new THREE.MeshPhysicalMaterial({ map: m.map, color: 0x1c1c1c, emissiveMap: m.map, emissive: 0xffffff, emissiveIntensity: 0.9, metalness: 0.35, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12, envMapIntensity: 1.6 });
     });
