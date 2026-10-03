@@ -6,11 +6,13 @@ import '../styles/book.css';
 import pass from '../assets/hf-pass.png';
 const art = (await getImage({ src: pass, width: 880, format: 'webp' })).src;
 const home = (Astro.site?.href ?? '').replace(/\/?$/, '/');
+// Live checkout is on when the build knows the checkout function's URL (repo variable CHECKOUT_URL).
+const live = !!import.meta.env.PUBLIC_CHECKOUT_URL;
 const crumbs = { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Home', item: home }, { '@type': 'ListItem', position: 2, name: 'Book a detail', item: home + 'book/' }] };
 ---
 <Base title="Book Mobile Detailing in Montgomery, AL | Mirror Finish MGM" description="Pick your vehicle, build your detail and see your price instantly. Book mobile car detailing in Montgomery, AL and the River Region with a 20% deposit." schema={[crumbs]}>
   <Header minimal />
-  <div class="demo" role="note">PREVIEW — sample availability, no payment is taken</div>
+  {!live && <div class="demo" role="note">PREVIEW — sample availability, no payment is taken</div>}
   <main id="main" class="book wrap">
     <h1 class="sr">Build and book your mobile detail</h1>
     <div id="app" data-pass-art={art} data-home="/">

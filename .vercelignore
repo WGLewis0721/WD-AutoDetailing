@@ -1,0 +1,10 @@
+# Vercel only needs the checkout function and the shared pricing code it imports.
+Assets
+design
+AGENTS
+Documentation
+site/node_modules
+site/dist
+site/dist-relative
+site/public
+site/src/assets

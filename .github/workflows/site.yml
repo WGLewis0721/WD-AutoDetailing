@@ -21,6 +21,9 @@ jobs:
         working-directory: site
     env:
       SITE_URL: https://wglewis0721.github.io/WD-AutoDetailing
+      # The Vercel checkout function (api/create-checkout.ts). Empty = preview mode, no payment taken.
+      # Set under Settings > Secrets and variables > Actions > Variables > CHECKOUT_URL.
+      PUBLIC_CHECKOUT_URL: ${{ vars.CHECKOUT_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

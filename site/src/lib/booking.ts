@@ -15,8 +15,15 @@ interface State {
   date: string; startMin: number; month: string;
   city: string; name: string; phone: string; email: string; street: string; zip: string; notes: string; agree: boolean;
 }
-/** Payment outcomes the deposit step has to handle once Square checkout is live. Preview mode simulates them with ?demo=declined or ?demo=taken. */
-type Pay = 'idle' | 'processing' | 'declined';
+/** Payment outcomes on the deposit step. 'unavailable' = the checkout function could not open Square (nothing charged).
+    Preview mode (no PUBLIC_CHECKOUT_URL at build time) simulates the others with ?demo=declined or ?demo=taken. */
+type Pay = 'idle' | 'processing' | 'declined' | 'unavailable';
+
+/* Live checkout: the Vercel function that re-prices the order and creates the Square Payment Link (api/create-checkout.ts).
+   Set at build time; when it is empty the page stays in preview mode and takes no payment. */
+const CHECKOUT_URL: string = import.meta.env.PUBLIC_CHECKOUT_URL ?? '';
+export const LIVE = !!CHECKOUT_URL;
+const PENDING = 'mf-pending';
 
 const KEY = 'mf-build-v3';
 const OTHER = 'other';
@@ -224,7 +231,8 @@ function panelDeposit(): string {
     const ex = c.extraIds.map((id) => esc(extras.find((e) => e.id === id)?.name ?? '')).join(', ');
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
-  const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>` : '';
+  const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
+    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>We could not open the secure checkout.</b> Nothing was charged. Try again in a moment, or ${textUs('text us')} and we will book it with you.</div>` : '';
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
@@ -315,7 +323,31 @@ function next() {
  * Round 3 replaces the timer with the Square hosted-checkout round trip. The three outcomes stay the same:
  * paid (confirm), declined (stay on review, nothing booked), slot taken while paying (back to the calendar, build kept).
  */
+/** What the checkout function needs: choices only. It re-prices everything and sizes each car from its make and model. */
+function checkoutOrder() {
+  return {
+    cars: s.cars.map((c) => ({ ...(c.manual ? { bodyStyle: c.manualStyle } : { year: c.year, make: c.make, model: c.model }), packageId: c.packageId, extraIds: c.extraIds })),
+    date: s.date, startMin: s.startMin, name: s.name.trim(), phone: s.phone, email: s.email.trim(),
+    street: s.street.trim(), city: s.city, zip: s.zip.trim(), notes: s.notes.trim(),
+  };
+}
+
+async function payLive() {
+  pay = 'processing'; render();
+  try {
+    const res = await fetch(CHECKOUT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) throw new Error(data.error ?? `HTTP ${res.status}`);
+    // Square sends the customer back to /book/?paid=REF after a successful payment; keep the build to show the pass.
+    try { localStorage.setItem(PENDING, JSON.stringify({ ref: data.ref, s })); } catch { /* the pass falls back to a short note */ }
+    location.href = data.url;
+  } catch {
+    pay = 'unavailable'; render(true);
+  }
+}
+
 function payDeposit() {
+  if (LIVE) { void payLive(); return; }
   pay = 'processing'; render();
   window.setTimeout(() => {
     if (demo === 'declined' && !demoUsed) { demoUsed = true; pay = 'declined'; render(true); return; }
@@ -333,9 +365,9 @@ function icsFile(): string {
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', `DTSTART:${z(start)}`, `DTEND:${z(end)}`, `SUMMARY:${SITE.name} detail`, `LOCATION:${icsText(address())}`, `DESCRIPTION:${icsText(desc)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
 }
 
-function confirmOrder() {
+function confirmOrder(paidRef?: string) {
   const o = order();
-  const ref = 'MF-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  const ref = paidRef ?? 'MF-' + Math.random().toString(36).slice(2, 8).toUpperCase();
   const when = new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + ' at ' + hourLabel(s.startMin);
   const art = $('app').dataset.passArt ?? '';
   const list = s.cars.map((c) => { const p = packages.find((x) => x.id === c.packageId)!; return `<li><b>${esc(carLabel(c))}</b><span>${p.name}${c.extraIds.length ? ' + ' + c.extraIds.length + ' add-on' + (c.extraIds.length > 1 ? 's' : '') : ''}</span></li>`; }).join('');
@@ -343,7 +375,7 @@ function confirmOrder() {
   const ics = icsFile();
   /* TODO: client to supply the cancellation and reschedule policy. Until then the page only says how to reach us. */
   $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1>
-    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. Square will send your confirmation to ${esc(s.email)}.</p>
+    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. Square ${paidRef ? 'is emailing your deposit receipt' : 'will send your confirmation'} to ${esc(s.email)}.</p>
     <div class="passwrap"><article class="pass" style="background-image:linear-gradient(var(--scrim-dark),var(--scrim-dark-strong)),url('${art}')">
       <header><b>DETAIL PASS</b><span>${ref}</span></header><ul class="plist">${list}</ul>
       <p class="pwhen">${icon('calendar', 16)} ${when}</p><p class="pwhen">${icon('pin', 16)} ${esc(address())}</p>
@@ -355,7 +387,7 @@ function confirmOrder() {
     <h2 class="alt">Keep <em>exploring</em></h2><div class="alts2"><a class="card" href="${HOME}#gallery"><b>See recent work</b><span class="muted">Real jobs from around Montgomery.</span></a><a class="card" href="${SITE.phoneSms}"><b>Text us a question</b><span class="muted">${SITE.phoneDisplay}</span></a><a class="card" href="${SITE.instagramUrl}"><b>Follow on Instagram</b><span class="muted">@mfmd_mgm</span></a><a class="card" href="${HOME}"><b>Back to the home page</b><span class="muted">Packages, areas and more.</span></a></div></section>`;
   $('cal').addEventListener('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'mirror-finish-detail.ics'; a.click(); });
   $('share').addEventListener('click', async () => { const url = `${location.origin}${location.pathname}`; try { if (navigator.share) await navigator.share({ title: SITE.name, text: `My detail with ${SITE.name}`, url }); else { await navigator.clipboard.writeText(url); $('share').textContent = 'Link copied'; } } catch { /* cancelled */ } });
-  try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(KEY); localStorage.removeItem(PENDING); } catch { /* ignore */ }
   window.scrollTo({ top: 0 });
 }
 
@@ -402,7 +434,24 @@ function bind() {
   });
 }
 
+/** Back from Square with ?paid=REF: restore the build that was paid for and show its Detail Pass. */
+function returnFromSquare(): boolean {
+  const ref = params.get('paid');
+  if (!ref) return false;
+  let pending: { ref: string; s: State } | null = null;
+  try { pending = JSON.parse(localStorage.getItem(PENDING) ?? 'null'); } catch { /* ignore */ }
+  history.replaceState(null, '', location.pathname);
+  if (pending?.ref === ref && Array.isArray(pending.s?.cars)) { s = { ...fresh(), ...pending.s }; confirmOrder(ref); return true; }
+  // Paid on another device or storage was cleared: Square's receipt is the record.
+  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Deposit received</p><h1>You're <em>booked.</em></h1>
+    <p class="lead">Your reference is ${esc(ref)}. Square has emailed your receipt. Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference if you need to change anything.</p>
+    <a class="btn" href="${HOME}">Back to the home page</a></section>`;
+  try { localStorage.removeItem(PENDING); } catch { /* ignore */ }
+  return true;
+}
+
 export function initBooking() {
+  if (returnFromSquare()) return;
   bind();
   viewer = createStill($('viewer'));
   render(false);
