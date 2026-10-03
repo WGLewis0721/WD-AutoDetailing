@@ -1,7 +1,7 @@
-import { extras, packages, sizes, type SizeId } from '../data/menu';
-import { SITE } from '../data/site';
-import { quoteOrder, MAX_CARS, type OrderQuote } from './pricing';
-import { bodyStyles, modelsFor } from './vehicles';
+import { extras, packages, sizes, type SizeId } from '../data/menu.js';
+import { SITE } from '../data/site.js';
+import { quoteOrder, MAX_CARS, type OrderQuote } from './pricing.js';
+import { bodyStyles, modelsFor } from './vehicles.js';
 
 /* The order the booking page sends to the checkout function, and the Square Payment Link request built from it.
    Same idea as the AGT site: the browser only says what was chosen; the server re-prices it from this repo's own

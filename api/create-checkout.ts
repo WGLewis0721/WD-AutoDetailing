@@ -12,7 +12,7 @@
      SQUARE_ENV            "sandbox" (default) or "production"
      SITE_URL              where the website lives, for the return link (default: the GitHub Pages URL)
      ALLOWED_ORIGINS       comma-separated origins allowed to call this (default: the GitHub Pages origin) */
-import { buildPaymentLink, lineTotal, OrderError, type CheckoutOrder } from '../site/src/lib/checkout';
+import { buildPaymentLink, lineTotal, OrderError, type CheckoutOrder } from '../site/src/lib/checkout.js';
 
 const SITE_URL = process.env.SITE_URL || 'https://wglewis0721.github.io/WD-AutoDetailing';
 const ORIGINS = (process.env.ALLOWED_ORIGINS || new URL(SITE_URL).origin).split(',').map((o) => o.trim()).filter(Boolean);

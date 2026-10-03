@@ -1,4 +1,4 @@
-import type { SizeId } from '../data/menu';
+import type { SizeId } from '../data/menu.js';
 
 export type Shape = 'sedan' | 'coupe' | 'hatch' | 'suv' | 'truck' | 'van';
 /** One 3D mesh per body style and size class, so each size reads differently on the stage. */

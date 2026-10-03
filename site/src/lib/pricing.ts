@@ -1,4 +1,4 @@
-import { DEPOSIT_RATE, extras, packages, sizes, type SizeId } from '../data/menu';
+import { DEPOSIT_RATE, extras, packages, sizes, type SizeId } from '../data/menu.js';
 
 export interface Selection { packageId: string | null; sizeId: SizeId | null; extraIds: string[] }
 export interface Quote { lines: { label: string; cents: number }[]; totalCents: number; depositCents: number; balanceCents: number; minutes: number }

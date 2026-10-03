@@ -1,0 +1,6 @@
+{
+  "name": "mirror-finish-checkout",
+  "private": true,
+  "description": "Vercel checkout function (api/). The website is in site/ and deploys to GitHub Pages.",
+  "type": "module"
+}
