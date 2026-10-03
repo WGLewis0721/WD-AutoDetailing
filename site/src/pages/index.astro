@@ -120,8 +120,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
           </div>
           <div class="fit-side">
             <div class="fit-stage" id="fitstage">
-              {bodyStyles.map((b, i) => <Image class="fit-img" data-key={b.model} src={render(b.model)} alt={b.label + ', for example ' + b.examples} widths={[448, 896]} sizes="(min-width: 900px) 520px, 100vw" loading="lazy" hidden={i !== 0} />)}
-              <div id="fitview"></div>
+              {bodyStyles.map((b, i) => <Image class="fit-img" data-key={b.model} src={render(b.model)} alt={b.label + ', for example ' + b.examples} widths={[480, 944]} sizes="(min-width: 900px) 760px, 100vw" loading={i === 0 ? 'eager' : 'lazy'} hidden={i !== 0} />)}
               <span class="fit-drag" id="fithint">Swipe to compare</span>
             </div>
             <ul class="tierbar" aria-label="Size classes and prices">
@@ -229,7 +228,6 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
 
     /* Size finder: the same make/model and body-style picker as the booking tool, with the 3D mesh loaded only when the section is reached. */
     import { bodyStyles } from '../lib/vehicles';
-    import type { Viewer } from '../lib/car3d';
     const fit = document.getElementById('fit');
     if (fit) {
       const fmake = document.getElementById('fmake') as HTMLSelectElement;
@@ -238,17 +236,13 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       const res = document.getElementById('fitres')!;
       const go = document.getElementById('fitgo') as HTMLAnchorElement;
       const book = fit.dataset.book ?? '/book';
-      let viewer: Viewer | null = null;
-      let key = 'sedan';
       const show = (model: string, size: string, query: string) => {
-        key = model;
         stage.querySelectorAll<HTMLElement>('.fit-img').forEach((i) => { i.hidden = i.dataset.key !== model; });
         document.querySelectorAll<HTMLElement>('.tierbar li').forEach((li) => {
           const on = li.dataset.size === size; li.classList.toggle('on', on);
           if (on) res.textContent = li.dataset.price ? li.dataset.name + ': ' + li.dataset.price + ' added to any package.' : li.dataset.name + ': the package price as listed.';
         });
         go.href = book + '?' + query;
-        viewer?.setModel(model as never);
       };
       fmake.addEventListener('change', () => {
         const list = modelsFor(fmake.value);
@@ -272,7 +266,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       /* Touch screens skip three.js: stills swap instantly and a swipe on the stage steps through the body styles. */
       const desktop = window.matchMedia('(min-width: 900px) and (hover: hover)').matches;
       const hint = document.getElementById('fithint')!;
-      if (desktop) hint.textContent = 'Drag to rotate';
+      if (desktop) hint.hidden = true;
       const step = (dir: number) => {
         const picks = [...fit.querySelectorAll<HTMLElement>('.pick')];
         const cur = picks.findIndex((p) => p.classList.contains('on'));
@@ -287,14 +281,6 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
         const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
         if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
       }, { passive: true });
-      const io = new IntersectionObserver(async ([en]) => {
-        if (!en.isIntersecting || !desktop) return;
-        io.disconnect();
-        const { createViewer } = await import('../lib/car3d');
-        viewer = createViewer(document.getElementById('fitview')!, { auto: false, yaw: -0.55, turntable: true, onReady: () => stage.classList.add('live') });
-        viewer.setModel(key as never);
-      }, { rootMargin: '200px' });
-      io.observe(stage);
     }
   </script>
 
@@ -360,11 +346,9 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     .pick:hover { border-color: var(--black); }
     .pick.on { border-color: var(--black); background: var(--ivory); box-shadow: inset 0 0 0 1px var(--black), 0 0 0 3px var(--gold); }
     .fit-stage { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius-lg); overflow: hidden; background: url('../assets/driveway-stage.jpg') center 60% / cover no-repeat, var(--ink-2); box-shadow: var(--shadow); }
-    .fit-img { position: absolute; left: 6%; top: 10%; width: 88%; height: 84%; object-fit: contain; }
+    .fit-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: fitin .45s var(--ease); }
+    @keyframes fitin { from { opacity: 0; } to { opacity: 1; } }
     .fit-img[hidden] { display: none; }
-    #fitview { position: absolute; inset: 0; cursor: grab; }
-    #fitview :global(canvas) { width: 100%; height: 100%; }
-    #fitview :global(.vfallback) { display: none; }
     .fit-stage.live .fit-img { display: none; }
     .fit-drag { position: absolute; top: var(--s3); right: var(--s4); color: var(--muted-on-dark); font-size: var(--fs-xs); }
     .tierbar { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }

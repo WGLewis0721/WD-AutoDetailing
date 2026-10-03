@@ -111,6 +111,8 @@
 .stage { position: relative; background: url('../assets/driveway-stage.jpg') center 60% / cover no-repeat, var(--ink-2); border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 16 / 10; box-shadow: var(--shadow); }
 #viewer { position: absolute; inset: 0; cursor: grab; }
 #viewer canvas { width: 100%; height: 100%; }
+.vstill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .45s var(--ease); }
+.vstill.on { opacity: 1; }
 .vfallback[hidden] { display: none; }
 .vfallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: var(--s4); mix-blend-mode: normal; background: var(--white); }
 #viewer.nogl::after { content: 'Preview unavailable on this device'; color: var(--muted-on-dark); position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--fs-sm); }

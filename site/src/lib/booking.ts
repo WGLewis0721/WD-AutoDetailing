@@ -4,7 +4,7 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
-import { createViewer, type Viewer } from './car3d';
+import { createStill, type Still } from './stills';
 
 interface Car {
   year: string; make: string; model: string; shape: Shape | null; size: SizeId | null; mesh: ModelKey | null;
@@ -72,7 +72,7 @@ const selOf = (c: Car): Selection => ({ packageId: c.packageId, sizeId: c.size, 
 const order = () => quoteOrder(s.cars.map((c, i) => ({ label: carLabel(c) || `Car ${i + 1}`, sel: selOf(c) })));
 const textUs = (label: string) => `<a class="link" href="${SITE.phoneSms}">${label}</a>`;
 
-let viewer: Viewer | null = null;
+let viewer: Still | null = null;
 let errors: Record<string, string> = {};
 let lastTotal = 0;
 let lastDeposit = 0;
@@ -404,6 +404,6 @@ function bind() {
 
 export function initBooking() {
   bind();
-  viewer = createViewer($('viewer'));
+  viewer = createStill($('viewer'));
   render(false);
 }
