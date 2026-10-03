@@ -21,7 +21,7 @@ type Pay = 'idle' | 'processing' | 'declined' | 'unavailable';
 
 /* Live checkout: the Vercel function that re-prices the order and creates the Square Payment Link (api/create-checkout.ts).
    Set at build time; when it is empty the page stays in preview mode and takes no payment. */
-const CHECKOUT_URL: string = import.meta.env.PUBLIC_CHECKOUT_URL ?? '';
+const CHECKOUT_URL: string = (import.meta.env.PUBLIC_CHECKOUT_URL ?? '').trim();
 export const LIVE = !!CHECKOUT_URL;
 const PENDING = 'mf-pending';
 

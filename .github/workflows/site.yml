@@ -21,9 +21,10 @@ jobs:
         working-directory: site
     env:
       SITE_URL: https://wglewis0721.github.io/WD-AutoDetailing
-      # The Vercel checkout function (api/create-checkout.ts). Empty = preview mode, no payment taken.
-      # Set under Settings > Secrets and variables > Actions > Variables > CHECKOUT_URL.
-      PUBLIC_CHECKOUT_URL: ${{ vars.CHECKOUT_URL }}
+      # The Vercel checkout function (api/create-checkout.ts, project mirror-finish-checkout). This makes the
+      # booking page take real deposits through Square. A repo variable CHECKOUT_URL overrides it; to switch the
+      # site back to preview mode (no payment), set that variable to a single space.
+      PUBLIC_CHECKOUT_URL: ${{ vars.CHECKOUT_URL || 'https://mirror-finish-checkout-gray-matter5.vercel.app/api/create-checkout' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

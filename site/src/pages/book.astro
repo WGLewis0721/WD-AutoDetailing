@@ -7,7 +7,7 @@ import pass from '../assets/hf-pass.png';
 const art = (await getImage({ src: pass, width: 880, format: 'webp' })).src;
 const home = (Astro.site?.href ?? '').replace(/\/?$/, '/');
 // Live checkout is on when the build knows the checkout function's URL (repo variable CHECKOUT_URL).
-const live = !!import.meta.env.PUBLIC_CHECKOUT_URL;
+const live = !!(import.meta.env.PUBLIC_CHECKOUT_URL ?? '').trim();
 const crumbs = { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Home', item: home }, { '@type': 'ListItem', position: 2, name: 'Book a detail', item: home + 'book/' }] };
 ---
 <Base title="Book Mobile Detailing in Montgomery, AL | Mirror Finish MGM" description="Pick your vehicle, build your detail and see your price instantly. Book mobile car detailing in Montgomery, AL and the River Region with a 20% deposit." schema={[crumbs]}>
