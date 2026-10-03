@@ -39,7 +39,7 @@ const faqs = [
   ['Where do you serve?', `${SITE.serviceArea.join(', ')}, AL. Not sure if you are in range? Text ${SITE.phoneDisplay}.`],
 ];
 const addonIcons = ['droplet', 'sparkle', 'shield', 'wand'];
-/* Renders of the same 3D meshes the booking tool uses, all at one scale so the size classes compare honestly. */
+/* Photoreal renders of each size class in the same driveway, so the size classes compare honestly. */
 const renders = import.meta.glob<{ default: ImageMetadata }>('../assets/sizes/*.png', { eager: true });
 const render = (key: string) => renders[`../assets/sizes/${key}.png`].default;
 const towns = SITE.serviceArea.join(', ').replace(/, ([^,]*)$/, ' and $1');
@@ -265,9 +265,9 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
         const s = bodyStyles.find((x) => x.id === b.dataset.style)!;
         show(s.model, s.size, 'style=' + s.id);
       });
-      /* A swipe on the stage steps through the body styles on touch screens. Renders preload once the section is near. */
-      const pre = new IntersectionObserver(([en]) => { if (!en.isIntersecting) return; pre.disconnect(); still.preload(bodyStyles.map((b) => b.model)); }, { rootMargin: '300px' });
-      pre.observe(stage);
+      /* A swipe on the stage steps through the body styles on touch screens. */
+      /* Preload a render as soon as the visitor shows intent (hover or focus on a body style). */
+      fit.querySelectorAll<HTMLElement>('.pick').forEach((p) => { const warm = () => still.preload([p.dataset.model as ModelKey]); p.addEventListener('pointerenter', warm, { once: true }); p.addEventListener('focus', warm, { once: true }); });
       const desktop = window.matchMedia('(min-width: 900px) and (hover: hover)').matches;
       const hint = document.getElementById('fithint')!;
       if (desktop) hint.hidden = true;

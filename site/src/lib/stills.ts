@@ -30,9 +30,9 @@ export function createStill(host: HTMLElement): Still {
   let want: ModelKey | null = null;
   return {
     async setModel(key) {
-      if (key === want) return;
+      /* No vehicle (e.g. the make was just changed): keep the last picture on screen rather than blanking the stage. */
+      if (!key || key === want) return;
       want = key;
-      if (!key) { host.querySelectorAll('.vstill').forEach((n) => n.remove()); return; }
       const src = url(key);
       await load(src);
       if (want !== key) return;

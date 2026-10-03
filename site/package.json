@@ -17,12 +17,9 @@
     "@fontsource-variable/manrope": "^5.3.0",
     "@fontsource/instrument-serif": "^5.3.0",
     "astro": "^7.3.5",
-    "three": "^0.186.1",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/three": "^0.186.0",
-    "three-subdivide": "^1.1.5",
     "vitest": "^5.0.3"
   }
 }
