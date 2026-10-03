@@ -168,3 +168,22 @@
   .alts2 { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 899px) { .stage { aspect-ratio: 16 / 9; } .book { padding-bottom: 120px; } .side { order: -1; } }
+
+/* Service Agreement gate: a full-screen sheet over the booking tool until the customer answers. */
+body.gated { overflow: hidden; }
+.gate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--s4); background: var(--scrim-dark-strong); backdrop-filter: blur(6px); overflow-y: auto; }
+.gate-card { width: min(100%, 40rem); max-height: calc(100svh - 2 * var(--s4)); overflow-y: auto; background: var(--white); color: var(--black); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: var(--s6) var(--s5); }
+.gate-card h2 { font-size: clamp(2rem, 6vw, 2.8rem); margin-bottom: var(--s2); }
+.gate-card h2:focus, .gate-card h2:focus-visible { outline: none; box-shadow: none; }
+.gate-sub { margin: 0 0 var(--s5); font-size: var(--fs-sm); }
+.clauses { margin: 0 0 var(--s5); padding: 0; list-style: none; counter-reset: clause; display: grid; gap: var(--s3); }
+.clauses li { counter-increment: clause; display: grid; grid-template-columns: 2rem 1fr; gap: var(--s2); font-size: var(--fs-sm); line-height: 1.55; padding-bottom: var(--s3); border-bottom: 1px solid var(--line-light); }
+.clauses li::before { content: counter(clause) '.'; font-family: var(--font-display); font-size: var(--fs-lg); color: var(--gold-deep); line-height: 1.2; }
+.gate-actions { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; position: sticky; bottom: calc(var(--s6) * -1); margin: 0 calc(var(--s5) * -1); padding: var(--s4) var(--s5) var(--s5); background: var(--white); border-top: 1px solid var(--line-light); }
+.gate-actions .btn--ghost { flex: 1 1 auto; justify-content: center; }
+.gate-actions .btn--lg { flex: 1 1 16rem; justify-content: center; }
+.gate .fine { margin: var(--s4) 0 0; font-size: var(--fs-xs); color: var(--muted); }
+.agreed { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); margin: 0 0 var(--s3); }
+.agreed .ic { color: var(--gold-deep); }
+.gate .link, .agreed .link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 3px; cursor: pointer; }
+@media (min-width: 600px) { .gate-card { padding: var(--s7) var(--s7) var(--s6); } .gate-actions { position: static; margin: 0; padding: 0; border: 0; } .gate-actions .btn--ghost { flex: 0 0 auto; } }

@@ -122,3 +122,26 @@ Higgsfield (`gpt_image_2_5`) generated the hero, paint close-up, interior and De
   - **First deploy fix:** Vercel compiled the function as CommonJS, so loading the shared pricing code failed. A root `package.json` (`type: module`) and explicit `.js` import paths fixed it.
   - **Test links left behind:** three, with references MF-75F7E76D, MF-7BD4B89E and MF-59DC65A2. They are unpaid draft orders with no charge, and can be deleted in Square.
   - **Switching back to preview mode:** set the repo variable `CHECKOUT_URL` to a single space and re-run the site workflow.
+
+## Round 7 (Service Agreement gate, agreements and bookings saved to a database)
+- **Gate before booking, as on the AGT site.** `/book` opens with the Service Agreement & Waiver (version 1.0.0, AGT's seven clauses worded for Mirror Finish). The booking tool stays inert behind it until the customer answers.
+  - **Agree:** recorded, and the booking opens.
+  - **Decline:** recorded too, then offers to book by text.
+  - **Review step:** the agreement is linked so the customer can reread it.
+  - **Text changes:** the text lives in `site/src/data/agreement.ts`. Bump `version` when any clause changes and everyone is asked again.
+- **What is recorded** (`POST /api/agreement` to `mf_agreements`):
+  - the decision;
+  - the time the customer answered and the time the server recorded it;
+  - the agreement version and a SHA-256 fingerprint of the exact clause text;
+  - the IP address and browser, taken server-side;
+  - the page.
+
+  The server refuses answers to an older or altered text (409). These are the six ESIGN/UETA fields AGT's waiver plan calls for.
+- **Checkout requires it.** `/api/create-checkout` checks for an accepted agreement on the current version before Square is called (428 otherwise, and the page shows the gate again).
+  - **What is saved:** after Square creates the link, the whole build goes to `mf_bookings`: customer, address, appointment, each car's vehicle, size, package, add-ons and line prices, totals, the agreement id and the Square link and order ids.
+  - **Square note:** the payment note also carries the agreement version and id.
+  - **If the save fails:** the customer still goes to Square, and the failure is logged.
+- **Database.** Supabase project "Studigo" (`blltmplsbabnklmnhmwv`), as the client chose.
+  - **Tables:** Mirror Finish tables are prefixed `mf_`.
+  - **Access:** RLS is on with no policies and anon/authenticated grants are revoked, so only the server's secret key can read or write them.
+  - **Vercel settings:** the project has `SUPABASE_URL`; `SUPABASE_SECRET_KEY` is added by the client (Supabase, Project Settings, API Keys, secret key).

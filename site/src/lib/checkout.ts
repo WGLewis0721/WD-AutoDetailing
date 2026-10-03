@@ -13,6 +13,7 @@ import { bodyStyles, modelsFor } from './vehicles.js';
 
 export interface CheckoutCar { year?: string; make?: string; model?: string; bodyStyle?: string; packageId: string; extraIds: string[] }
 export interface CheckoutOrder {
+  agreementId?: string; // id from /api/agreement; required by the live function
   cars: CheckoutCar[];
   date: string; // YYYY-MM-DD
   startMin: number; // minutes after midnight
@@ -82,7 +83,23 @@ export const lineTotal = (lines: PaymentLinkRequest['order']['line_items']) =>
 
 const timeLabel = (min: number) => `${((Math.floor(min / 60) + 11) % 12) + 1}:${String(min % 60).padStart(2, '0')} ${min < 720 ? 'AM' : 'PM'}`;
 
-export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; ref: string; siteUrl: string }): PaymentLinkRequest {
+/** The customer's build as stored in mf_bookings.cars: per car the vehicle, size, package, add-ons and line prices. */
+export function bookingCars(o: CheckoutOrder) {
+  const q = priceOrder(o);
+  return o.cars.map((c, i) => ({
+    car: i + 1,
+    vehicle: q.labels[i],
+    ...(c.bodyStyle ? { bodyStyle: c.bodyStyle } : { year: clean(c.year, 4), make: clean(c.make, 40), model: clean(c.model, 60) }),
+    size: sizeFor(c).size,
+    packageId: c.packageId,
+    extraIds: c.extraIds,
+    lines: q.cars[i].lines,
+    totalCents: q.cars[i].totalCents,
+    minutes: q.cars[i].minutes,
+  }));
+}
+
+export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; ref: string; siteUrl: string; agreement?: string }): PaymentLinkRequest {
   validate(o);
   const q = priceOrder(o);
   const multi = o.cars.length > 1;
@@ -126,6 +143,6 @@ export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; r
     },
     checkout_options: { redirect_url: `${siteUrl}/book/?paid=${encodeURIComponent(opts.ref)}`, ask_for_shipping_address: false, allow_tipping: false },
     pre_populated_data: { buyer_email: clean(o.email, 255), buyer_phone_number: `+1${phone}` },
-    payment_note: clip(`${opts.ref} | ${when} | ${clean(o.name, 80)} | ${address}${o.notes ? ' | Notes: ' + clean(o.notes, 200) : ''}`, 500),
+    payment_note: clip(`${opts.ref} | ${when} | ${clean(o.name, 80)} | ${address}${opts.agreement ? ' | Agreed: ' + opts.agreement : ''}${o.notes ? ' | Notes: ' + clean(o.notes, 200) : ''}`, 500),
   };
 }

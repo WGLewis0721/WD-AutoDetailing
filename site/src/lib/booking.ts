@@ -5,6 +5,7 @@ import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing'
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
 import { createStill, type Still } from './stills';
+import { AGREEMENT, agreementHash } from '../data/agreement';
 
 interface Car {
   year: string; make: string; model: string; shape: Shape | null; size: SizeId | null; mesh: ModelKey | null;
@@ -24,6 +25,17 @@ type Pay = 'idle' | 'processing' | 'declined' | 'unavailable';
 const CHECKOUT_URL: string = (import.meta.env.PUBLIC_CHECKOUT_URL ?? '').trim();
 export const LIVE = !!CHECKOUT_URL;
 const PENDING = 'mf-pending';
+
+/* Service Agreement gate (same terms and evidence as the AGT site). Shown before step 1; the answer is recorded by
+   /api/agreement (server adds IP and user agent), and checkout refuses to start without an accepted agreement id.
+   The id is kept per browser for the current agreement version only, so a text change asks again. */
+const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
+const AGREE_KEY = 'mf-agreement';
+interface Agreed { id: string; version: string; at: string }
+const readAgreed = (): Agreed | null => {
+  try { const a = JSON.parse(localStorage.getItem(AGREE_KEY) ?? 'null') as Agreed | null; return a?.id && a.version === AGREEMENT.version ? a : null; } catch { return null; }
+};
+let agreed: Agreed | null = readAgreed();
 
 const KEY = 'mf-build-v3';
 const OTHER = 'other';
@@ -237,7 +249,8 @@ function panelDeposit(): string {
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
     <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>Deposit today (20%)</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
-    <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I agree to the booking terms. Final price may vary with vehicle condition and size after inspection.</span></label>
+    <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection.</span></label>
+    <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
     <p class="note">Preview mode: no payment is taken in this version.</p>`;
 }
 
@@ -326,6 +339,7 @@ function next() {
 /** What the checkout function needs: choices only. It re-prices everything and sizes each car from its make and model. */
 function checkoutOrder() {
   return {
+    agreementId: agreed?.id,
     cars: s.cars.map((c) => ({ ...(c.manual ? { bodyStyle: c.manualStyle } : { year: c.year, make: c.make, model: c.model }), packageId: c.packageId, extraIds: c.extraIds })),
     date: s.date, startMin: s.startMin, name: s.name.trim(), phone: s.phone, email: s.email.trim(),
     street: s.street.trim(), city: s.city, zip: s.zip.trim(), notes: s.notes.trim(),
@@ -337,6 +351,7 @@ async function payLive() {
   try {
     const res = await fetch(CHECKOUT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 428) { forgetAgreement(); pay = 'idle'; render(); openGate(); return; }
     if (!res.ok || !data.url) throw new Error(data.error ?? `HTTP ${res.status}`);
     // Square sends the customer back to /book/?paid=REF after a successful payment; keep the build to show the pass.
     try { localStorage.setItem(PENDING, JSON.stringify({ ref: data.ref, s })); } catch { /* the pass falls back to a short note */ }
@@ -400,6 +415,7 @@ function bind() {
     if (!t || pay === 'processing') return;
     const d = t.dataset;
     const c = car();
+    if (d.terms !== undefined) { openGate(true); return; }
     if (d.go) go(Number(d.go));
     else if (d.car) { s.active = Number(d.car); render(); }
     else if (d.remove) { const i = Number(d.remove); s.cars.splice(i, 1); s.active = Math.min(s.active, s.cars.length - 1); s.date = ''; s.startMin = -1; render(); }
@@ -434,6 +450,89 @@ function bind() {
   });
 }
 
+
+/* ---------- Service Agreement gate ---------- */
+const gateId = 'gate';
+function forgetAgreement() { agreed = null; try { localStorage.removeItem(AGREE_KEY); } catch { /* ignore */ } }
+
+function gateMarkup(viewOnly: boolean): string {
+  const clauses = AGREEMENT.clauses.map((c) => `<li>${esc(c)}</li>`).join('');
+  const actions = viewOnly
+    ? `<button class="btn" type="button" data-gate="close">Close</button>`
+    : `<button class="btn btn--lg" type="button" data-gate="agree"><span>I agree, let’s book</span>${icon('arrow', 18)}</button><button class="btn btn--ghost" type="button" data-gate="decline">Decline</button>`;
+  return `<div class="gate-card"><p class="eyebrow">${viewOnly ? 'Your agreement' : 'Before you book'}</p>
+    <h2 id="gate-t" tabindex="-1">Service Agreement &amp; <em>Waiver</em></h2>
+    <p class="muted gate-sub">${esc(AGREEMENT.business)} · Version ${AGREEMENT.version}</p>
+    <ol class="clauses">${clauses}</ol>
+    <div class="errsum" id="gate-err" role="alert" hidden></div>
+    <div class="gate-actions">${actions}</div>
+    ${viewOnly ? '' : '<p class="fine">Your answer is saved with the date and time and this version of the agreement.</p>'}</div>`;
+}
+
+function openGate(viewOnly = false) {
+  let g = document.getElementById(gateId);
+  if (!g) {
+    g = document.createElement('div');
+    g.id = gateId; g.className = 'gate'; g.setAttribute('role', 'dialog'); g.setAttribute('aria-modal', 'true'); g.setAttribute('aria-labelledby', 'gate-t');
+    document.body.appendChild(g);
+    g.addEventListener('click', onGateClick);
+  }
+  g.innerHTML = gateMarkup(viewOnly);
+  g.dataset.view = viewOnly ? '1' : '';
+  const main = document.getElementById('main'); if (main) main.inert = true;
+  document.body.classList.add('gated');
+  requestAnimationFrame(() => g!.querySelector<HTMLElement>('#gate-t')?.focus());
+}
+
+function closeGate() {
+  document.getElementById(gateId)?.remove();
+  const main = document.getElementById('main'); if (main) main.inert = false;
+  document.body.classList.remove('gated');
+}
+
+function gateError(html: string) { const e = document.getElementById('gate-err'); if (e) { e.innerHTML = html; e.hidden = false; } }
+
+async function recordAnswer(decision: 'accepted' | 'declined'): Promise<string | null> {
+  const body = { decision, version: AGREEMENT.version, clausesHash: await agreementHash(), acceptedAt: new Date().toISOString(), pageUrl: location.href };
+  const res = await fetch(AGREEMENT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 409) throw Object.assign(new Error('stale'), { stale: true });
+  if (!res.ok || !data.id) throw new Error(data.error ?? `HTTP ${res.status}`);
+  return data.id as string;
+}
+
+async function onGateClick(e: Event) {
+  const t = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-gate]');
+  if (!t) return;
+  const act = t.dataset.gate;
+  if (act === 'close') { closeGate(); return; }
+  if (act === 'review') { openGate(); return; }
+  if (act === 'agree') {
+    t.disabled = true; t.querySelector('span')!.textContent = 'Saving your agreement…';
+    try {
+      const id = LIVE ? await recordAnswer('accepted') : 'preview';
+      agreed = { id: id!, version: AGREEMENT.version, at: new Date().toISOString() };
+      try { localStorage.setItem(AGREE_KEY, JSON.stringify(agreed)); } catch { /* kept for this visit */ }
+      closeGate(); render(true);
+    } catch (err) {
+      t.disabled = false; t.querySelector('span')!.textContent = 'I agree, let’s book';
+      gateError((err as { stale?: boolean }).stale
+        ? '<b>This agreement was just updated.</b> Reload the page to read the current version.'
+        : `<b>We could not save your agreement.</b> Check your connection and try again, or ${textUs('text us')} to book.`);
+    }
+  }
+  if (act === 'decline') {
+    if (LIVE) void recordAnswer('declined').catch(() => undefined);
+    const g = document.getElementById(gateId)!;
+    g.innerHTML = `<div class="gate-card"><p class="eyebrow">No problem</p><h2 id="gate-t" tabindex="-1">Let’s book it <em>together</em></h2>
+      <p class="lead">Online booking needs the Service Agreement. You can still book by text, and we will answer any questions about the terms.</p>
+      <div class="gate-actions"><a class="btn btn--lg" href="${SITE.phoneSms}">${icon('phone', 18)}<span>Text ${SITE.phoneDisplay}</span></a>
+      <button class="btn btn--ghost" type="button" data-gate="review">Review the agreement again</button></div>
+      <p class="fine"><a class="link" href="${HOME}">Back to the home page</a></p></div>`;
+    g.querySelector<HTMLElement>('#gate-t')?.focus();
+  }
+}
+
 /** Back from Square with ?paid=REF: restore the build that was paid for and show its Detail Pass. */
 function returnFromSquare(): boolean {
   const ref = params.get('paid');
@@ -455,4 +554,5 @@ export function initBooking() {
   bind();
   viewer = createStill($('viewer'));
   render(false);
+  if (!agreed) openGate();
 }
