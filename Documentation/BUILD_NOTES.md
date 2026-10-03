@@ -145,3 +145,9 @@ Higgsfield (`gpt_image_2_5`) generated the hero, paint close-up, interior and De
   - **Tables:** Mirror Finish tables are prefixed `mf_`.
   - **Access:** RLS is on with no policies and anon/authenticated grants are revoked, so only the server's secret key can read or write them.
   - **Vercel settings:** the project has `SUPABASE_URL`; `SUPABASE_SECRET_KEY` is added by the client (Supabase, Project Settings, API Keys, secret key).
+
+### Round 7b: gate ships before the database key
+Until `SUPABASE_SECRET_KEY` is set in Vercel, `/api/agreement` answers 503 and the page stores the acceptance as `local`.
+Checkout accepts `local` only while the database is unconfigured and writes "Agreed: v1.0.0 at <time> (not recorded:
+database not connected)" into the Square payment note; the build is not saved. Once the key is set, recording and the
+428 enforcement switch on with no redeploy, and anyone holding a `local` acceptance is shown the agreement again.

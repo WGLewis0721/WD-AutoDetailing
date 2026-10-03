@@ -339,7 +339,7 @@ function next() {
 /** What the checkout function needs: choices only. It re-prices everything and sizes each car from its make and model. */
 function checkoutOrder() {
   return {
-    agreementId: agreed?.id,
+    agreementId: agreed?.id, agreedAt: agreed?.at,
     cars: s.cars.map((c) => ({ ...(c.manual ? { bodyStyle: c.manualStyle } : { year: c.year, make: c.make, model: c.model }), packageId: c.packageId, extraIds: c.extraIds })),
     date: s.date, startMin: s.startMin, name: s.name.trim(), phone: s.phone, email: s.email.trim(),
     street: s.street.trim(), city: s.city, zip: s.zip.trim(), notes: s.notes.trim(),
@@ -497,6 +497,7 @@ async function recordAnswer(decision: 'accepted' | 'declined'): Promise<string |
   const res = await fetch(AGREEMENT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 409) throw Object.assign(new Error('stale'), { stale: true });
+  if (res.status === 503) return 'local'; // database not connected yet: checkout carries the acceptance in the Square note
   if (!res.ok || !data.id) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data.id as string;
 }

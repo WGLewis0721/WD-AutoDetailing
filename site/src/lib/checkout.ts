@@ -13,7 +13,8 @@ import { bodyStyles, modelsFor } from './vehicles.js';
 
 export interface CheckoutCar { year?: string; make?: string; model?: string; bodyStyle?: string; packageId: string; extraIds: string[] }
 export interface CheckoutOrder {
-  agreementId?: string; // id from /api/agreement; required by the live function
+  agreementId?: string; // id from /api/agreement ('local' while the database is not connected); required by the live function
+  agreedAt?: string; // when the customer accepted, noted on the Square payment while the database is not connected
   cars: CheckoutCar[];
   date: string; // YYYY-MM-DD
   startMin: number; // minutes after midnight

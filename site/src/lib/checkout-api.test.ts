@@ -54,9 +54,26 @@ describe('checkout function', () => {
     expect((await POST(post(order, 'https://evil.example'))).status).toBe(403);
   });
 
-  it('says so plainly when Square or the database is not configured', async () => {
-    const { POST } = await load('create-checkout', { ...ENV, SUPABASE_SECRET_KEY: '' });
+  it('says so plainly when Square is not configured', async () => {
+    const { POST } = await load('create-checkout', { ...ENV, SQUARE_ACCESS_TOKEN: '' });
     expect((await POST(post(order))).status).toBe(503);
+  });
+
+  it('still takes bookings before the database key is set, noting the acceptance on the Square payment', async () => {
+    const { calls } = backend();
+    const { POST } = await load('create-checkout', { ...ENV, SUPABASE_SECRET_KEY: '' });
+    expect((await POST(post(order))).status).toBe(428); // a database id means nothing here
+    const r = await POST(post({ ...order, agreementId: 'local', agreedAt: '2026-10-03T14:00:00.000Z' }));
+    expect(r.status).toBe(200);
+    const sent = JSON.parse(String(calls.find((c) => c.url.includes('squareup'))!.init.body));
+    expect(sent.payment_note).toContain(`Agreed: v${AGREEMENT.version} at 2026-10-03T14:00:00.000Z`);
+    expect(calls.some((c) => c.url.startsWith('https://db.example'))).toBe(false);
+  });
+
+  it('stops accepting local acceptances once the database is connected', async () => {
+    backend();
+    const { POST } = await load('create-checkout');
+    expect((await POST(post({ ...order, agreementId: 'local' }))).status).toBe(428);
   });
 
   it('will not start checkout without an accepted agreement', async () => {
