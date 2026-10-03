@@ -9,7 +9,7 @@ const walk = (dir) => {
     if (statSync(p).isDirectory()) { walk(p); continue; }
     if (!/\.(css|astro|ts)$/.test(f) || p.endsWith('tokens.css') || p.endsWith('.test.ts')) continue;
     readFileSync(p, 'utf8').split('\n').forEach((line, i) => {
-      if (line.includes('theme-color')) return;
+      if (line.includes('theme-color') || line.includes('check-tokens:ignore')) return;
       if (/(^|[^&\w])#[0-9a-fA-F]{3,8}\b/.test(line) || /\brgba?\(/.test(line) || /\bhsla?\(/.test(line)) bad.push(`${p}:${i + 1}: ${line.trim()}`);
     });
   }
