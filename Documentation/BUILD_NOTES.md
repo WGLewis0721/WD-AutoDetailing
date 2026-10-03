@@ -117,3 +117,8 @@ Higgsfield (`gpt_image_2_5`) generated the hero, paint close-up, interior and De
   - the times shown are still sample availability.
 
   Next would be a Square webhook (`payment.updated`), which reads the order metadata the function writes (ref, appointment, customer, vehicles), plus real availability.
+- **Live since 2026-10-03.** The function is at `https://mirror-finish-checkout-gray-matter5.vercel.app/api/create-checkout`, and the site build points at it (`site.yml`).
+  - **Verified:** one test link on the live Square account listed the real catalog items ($450 order, $360 balance discount, $90 charged). The live booking flow was then run from vehicle to Pay, through Square, and back to the Detail Pass.
+  - **First deploy fix:** Vercel compiled the function as CommonJS, so loading the shared pricing code failed. A root `package.json` (`type: module`) and explicit `.js` import paths fixed it.
+  - **Test links left behind:** three, with references MF-75F7E76D, MF-7BD4B89E and MF-59DC65A2. They are unpaid draft orders with no charge, and can be deleted in Square.
+  - **Switching back to preview mode:** set the repo variable `CHECKOUT_URL` to a single space and re-run the site workflow.
