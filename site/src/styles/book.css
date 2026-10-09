@@ -239,7 +239,7 @@ body.gated { overflow: hidden; }
 .request-price strong { color: var(--white); font-size: var(--fs-lg);
   font-weight: 600; font-variant-numeric: tabular-nums; }
 .request-price .request-deposit { border: 1px solid color-mix(in srgb, var(--gold) 42%, transparent);
-  background: color-mix(in srgb, var(--gold-deep) 13%, transparent); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--gold-deep) 13%, transparent); border-radius: calc(var(--radius-lg) / 2);
   margin: 0 calc(var(--s3) * -1); padding: var(--s4) var(--s3); }
 .request-deposit span { color: var(--gold-hi); font-weight: 700; }
 .request-deposit small { font-size: var(--fs-xs); }
