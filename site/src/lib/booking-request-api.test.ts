@@ -39,7 +39,7 @@ describe('on-site appointment requests',()=>{
   const response=await POST(post(order));
   expect(response.status).toBe(200);
   const data=await response.json();
-  expect(data).toMatchObject({confirmed:false,charged:false});
+  expect(data).toMatchObject({confirmed:false,charged:false,totalCents:20000,depositCents:4000,balanceCents:16000});
   expect(data.ref).toMatch(/^MF-[A-Z0-9]{8}$/);
   const save=calls.find(c=>c.url.endsWith('/rest/v1/mf_bookings'))!;
   const row=JSON.parse(String(save.init.body));
