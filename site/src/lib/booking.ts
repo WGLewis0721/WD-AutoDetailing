@@ -297,7 +297,7 @@ function panelDeposit(): string {
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
   const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
-    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>We could not open the secure checkout.</b> Nothing was charged. Try again in a moment, or ${textUs('text us')} and we will book it with you.</div>` : '';
+    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>${launchMode === 'request' ? 'We could not submit your request.' : 'We could not open the secure checkout.'}</b> Nothing was charged. Try again, or ${textUs('text us')} to arrange your appointment.</div>` : '';
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
