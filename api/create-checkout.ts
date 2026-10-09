@@ -31,6 +31,11 @@ export const OPTIONS = preflight;
 export async function POST(req: Request) {
   const origin = req.headers.get('origin');
   if (foreignOrigin(req)) return json(403, { error: 'Origin not allowed' }, origin);
+  // Protect customers from paying before the Square catalog durations, webhook,
+  // seller entitlements and post-payment appointment creation are verified.
+  if (process.env.SQUARE_BOOKING_LAUNCH_APPROVED !== 'true') {
+    return json(503, { error: 'Online scheduling is not open yet. Please book by text.' }, origin);
+  }
   if (!process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_LOCATION_ID) {
     log('checkout_not_configured');
     return json(503, { error: 'Online payment is not set up yet' }, origin);
