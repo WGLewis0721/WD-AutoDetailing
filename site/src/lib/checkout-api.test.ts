@@ -104,7 +104,7 @@ describe('checkout function', () => {
     expect(out.url).toBe('https://square.link/u/abc');
     expect(out.ref).toMatch(/^MF-[0-9A-F]{8}$/);
 
-    const sq = calls.find((c) => c.url.includes('squareupsandbox'))!;
+    const sq = calls.find((c) => c.url.endsWith('/v2/online-checkout/payment-links'))!;
     expect((sq.init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
     const sent = JSON.parse(String(sq.init.body));
     expect(sent.order.line_items.map((l: { catalog_object_id: string }) => l.catalog_object_id)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ']);
