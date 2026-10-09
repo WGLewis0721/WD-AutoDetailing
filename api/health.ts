@@ -7,6 +7,9 @@ export async function GET() {
     'SQUARE_APPOINTMENT_EXTERIOR_VERSION','SQUARE_APPOINTMENT_INTERIOR_VARIATION_ID',
     'SQUARE_APPOINTMENT_INTERIOR_VERSION','SQUARE_WEBHOOK_SIGNATURE_KEY','SQUARE_WEBHOOK_URL'];
   const missing = required.filter(k => !process.env[k]);
+  // A complete env list does not prove Square can create a real booking after payment.
+  // Only enable customer checkout after a verified, production-safe end-to-end cutover.
+  if (process.env.SQUARE_BOOKING_LAUNCH_APPROVED !== 'true') missing.push('SQUARE_BOOKING_LAUNCH_APPROVED');
   return json(missing.length ? 503 : 200,
     { ready: missing.length === 0, missing, note: 'Configuration only; a live Square entitlement and end-to-end test are still required.' }, null);
 }
