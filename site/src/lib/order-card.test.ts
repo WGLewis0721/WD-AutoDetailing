@@ -54,6 +54,8 @@ describe('shareable order card PNG', () => {
     expect(drawn).toEqual(['/models/plate.webp', '/models/coupe-car.webp']);
     expect(images.length).toBeGreaterThanOrEqual(3); // driveway + car + final canvas crop
     expect(labels).toContain('2021 Chevrolet Corvette');
+    expect(labels).toContain('Friday, October 30 at 2:00 PM');
+    expect(labels).toContain('Headlight Restoration');
     expect(labels).toContain('$65.00');
     expect(labels).toContain('AWAITING CONFIRMATION');
     expect(labels).toContain('$0.00');
