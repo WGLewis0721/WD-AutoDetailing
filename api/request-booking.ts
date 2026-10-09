@@ -30,11 +30,14 @@ export async function POST(req: Request) {
   const base = new Date(order.date+'T12:00:00Z');
   if (Number.isNaN(base.getTime()) || base.toISOString().slice(0,10) !== order.date)
     return json(400,{error:'Invalid date'},origin);
-  const localToday = new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'});
+  const parts = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const take = (part: string) => parts.find(p=>p.type===part)?.value||'';
+  const localToday = `${take('year')}-${take('month')}-${take('day')}`;
   const today = Date.parse(localToday+'T12:00:00Z');
   const days = Math.round((base.getTime()-today)/86400000);
   if (days < SITE.schedule.leadDays || days > SITE.schedule.horizonDays ||
       SITE.schedule.closedDays.includes(base.getUTCDay() as 0) ||
+      order.startMin % SITE.schedule.stepMinutes !== 0 ||
       order.startMin < SITE.schedule.openHour*60 ||
       order.startMin + priceOrder(order).minutes > SITE.schedule.closeHour*60)
     return json(409,{error:'Please choose a business day and start time.'},origin);
