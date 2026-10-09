@@ -20,7 +20,7 @@ jobs:
       run:
         working-directory: site
     env:
-      SITE_URL: https://wglewis0721.github.io/WD-AutoDetailing
+      SITE_URL: https://mirrorfinishmgm.com
       # The Vercel checkout function (api/create-checkout.ts, project mirror-finish-checkout). This makes the
       # booking page use the Vercel API if customer deposit cutover has been separately verified. A repo variable CHECKOUT_URL overrides it; to switch the
       # site back to preview mode (no payment), set that variable to a single space.
