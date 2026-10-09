@@ -32,6 +32,7 @@ const PENDING = 'mf-pending';
 const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
 const AVAILABILITY_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'availability');
 const STATUS_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'booking-status');
+const HEALTH_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'health');
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -618,10 +619,27 @@ function returnFromSquare(): boolean {
   return true;
 }
 
-export function initBooking() {
-  if (returnFromSquare()) return;
+function startBooking() {
   bind();
   viewer = createStill($('viewer'));
   render(false);
   if (!agreed) openGate();
+}
+async function startWithReadinessCheck() {
+  try {
+    const res = await fetch(HEALTH_URL, { cache: 'no-store' });
+    if (res.ok) { startBooking(); return; }
+  } catch { /* offline or API unavailable: manual bookings remain possible */ }
+  // Never ask customers to agree, choose a fake time, and then fail at payment.
+  $('app').innerHTML = `<section class="thanks wrap" role="status">
+    <p class="eyebrow">Book by text</p><h1>Let's schedule your <em>detail.</em></h1>
+    <p class="lead">Online appointment scheduling is temporarily unavailable. We can confirm an available time directly and answer any questions about your vehicle.</p>
+    <a class="btn btn--lg" href="${SITE.phoneSms}">Text ${SITE.phoneDisplay} to book</a>
+    <p class="muted">No online deposit will be taken while scheduling is unavailable.</p>
+    <a class="link" href="${HOME}">View packages and services</a></section>`;
+}
+export function initBooking() {
+  if (returnFromSquare()) return;
+  if (LIVE) { void startWithReadinessCheck(); return; }
+  startBooking();
 }
