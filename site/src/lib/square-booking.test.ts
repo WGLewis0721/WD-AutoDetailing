@@ -77,7 +77,7 @@ describe('Square payment webhook', () => {
       if(url.includes('?square_order_id=eq.O1')) return new Response(JSON.stringify([row]),{status:200});
       if(url.endsWith('/v2/customers')) return new Response(JSON.stringify({customer:{id:'C1'}}),{status:200});
       if(url.endsWith('/v2/bookings')) return new Response(JSON.stringify({booking:{id:'B1'}}),{status:200});
-      if(url.includes('mf_bookings?ref=eq.')) return new Response('',{status:204});
+      if(url.includes('mf_bookings?ref=eq.')) return new Response(null,{status:204});
       throw Error('Unexpected request '+url);
     }));
     const { POST } = await import('../../../api/square-webhook.ts');
