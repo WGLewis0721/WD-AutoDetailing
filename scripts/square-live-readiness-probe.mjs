@@ -37,3 +37,6 @@ for(const name of services){
  const durationCorrect=slots.length===0||slots.every(s=>s.appointment_segments?.[0]?.duration_minutes===minutes[name]&&s.appointment_segments?.[0]?.service_variation_version===Number(process.env['SQUARE_APPOINTMENT_'+name+'_VERSION']));
  console.log('MF_AVAIL '+name+' HTTP='+result.status+' slots='+slots.length+' durationMatches='+durationCorrect+' first='+(slots[0]?.start_at||'none')+' errors='+result.errors.join(','));
 }
+
+const webhookTest=await call('/webhooks/subscriptions/'+encodeURIComponent(process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID)+'/test',{event_type:'payment.created'});
+console.log('MF_WEBHOOK_TEST API_HTTP='+webhookTest.status+' endpoint_status='+webhookTest.data.subscription_test_result?.status_code+' errors='+webhookTest.errors.join(','));
