@@ -11,6 +11,8 @@ const base = (): string => {
 const BASE = base();
 /** Site-owned transparent vehicle render, also used in the branded request receipt. */
 export const vehicleStillUrl = (key: ModelKey): string => `${BASE}models/${key}-car.webp`;
+/** The actual shared driveway plate used underneath every configurator vehicle. */
+export const vehicleStagePlateUrl = (): string => `${BASE}models/plate.webp`;
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const IN_DELAY_MS = 150, CLEAN_MS = 700; // old car is mostly gone (CSS: .2s) before the next one starts
 
