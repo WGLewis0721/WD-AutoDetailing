@@ -27,7 +27,8 @@ export async function db<T = unknown>(path: string, init: { method?: string; bod
   const key = process.env.SUPABASE_SECRET_KEY!;
   const res = await fetch(`${process.env.SUPABASE_URL!.replace(/\/$/, '')}/rest/v1/${path}`, {
     method: init.method ?? 'GET',
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', ...(init.prefer ? { Prefer: init.prefer } : {}) },
+    // sb_secret_* keys are opaque API keys, not JWTs. Supabase rejects them as Bearer tokens.
+    headers: { apikey: key, 'Content-Type': 'application/json', ...(init.prefer ? { Prefer: init.prefer } : {}) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
   const text = await res.text();
