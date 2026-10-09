@@ -112,6 +112,7 @@ describe('checkout function', () => {
 
     const save = calls.find((c) => c.url === 'https://db.example/rest/v1/mf_bookings')!;
     expect((save.init.headers as Record<string, string>).apikey).toBe('sb_secret_x');
+    expect((save.init.headers as Record<string, string>).Authorization).toBeUndefined();
     const row = JSON.parse(String(save.init.body));
     expect(row).toMatchObject({
       ref: out.ref, agreement_id: AID, customer_name: 'Jordan Smith', phone: '3345550123', city: 'Montgomery', notes: 'Gate code 4321',
