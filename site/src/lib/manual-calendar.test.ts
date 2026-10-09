@@ -57,6 +57,15 @@ describe('manual Google Calendar booking request',()=>{
     expect(calls[0].method).toBe('GET');
   });
 
+  it('uses the correct Central Standard Time offset for winter requests',async()=>{
+    const {googleCalendarDraft}=await import('../../../api/_calendar-request.ts');
+    const winter=new URL(googleCalendarDraft({
+      ...request,appointment_date:'2026-11-10', start_minute:600,
+    }));
+    expect(winter.searchParams.get('dates')).toBe('20261110T160000Z/20261110T180000Z');
+    expect(winter.searchParams.get('etz')).toBe('America/Chicago');
+  });
+
   it('rejects forged and tampered URLs before accessing customer data',async()=>{
     const {calendarRequestLink}=await import('../../../api/_calendar-request.ts');
     const url=new URL(await calendarRequestLink(ref,base+'/api/request-booking'));
