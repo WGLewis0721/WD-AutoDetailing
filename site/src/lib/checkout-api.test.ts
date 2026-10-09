@@ -5,20 +5,24 @@ const ORIGIN = 'https://wglewis0721.github.io';
 const AID = '0b6f3a2e-1c4d-4e5f-8a9b-0c1d2e3f4a5b';
 const order = {
   agreementId: AID,
-  cars: [{ year: '2022', make: 'Toyota', model: 'Camry', packageId: 'deluxe', extraIds: ['decon'] }],
+  cars: [{ year: '2022', make: 'Toyota', model: 'Camry', packageId: 'deluxe', extraIds: [] }],
   date: '2026-10-10', startMin: 600, name: 'Jordan Smith', phone: '3345550123', email: 'j@example.com',
   street: '12 Oak St', city: 'Montgomery', zip: '36104',
 };
 const post = (body: unknown, origin = ORIGIN, headers: Record<string, string> = {}) =>
   new Request('https://checkout.example/api/x', { method: 'POST', headers: { origin, 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
-const ENV = { SQUARE_ACCESS_TOKEN: 'tok', SQUARE_LOCATION_ID: 'LOC', SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_x' };
+const ENV = { SQUARE_ACCESS_TOKEN: 'tok', SQUARE_LOCATION_ID: 'LOC', SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_x',
+  SQUARE_APPOINTMENT_DELUXE_VARIATION_ID: 'VAR', SQUARE_APPOINTMENT_DELUXE_VERSION: '42',
+  SQUARE_APPOINTMENT_TEAM_MEMBER_ID: 'TEAM' };
 
 /** Fake Square + Supabase. `agreements` are the accepted ids the database knows. */
 function backend({ agreements = [AID], square = { status: 200, body: { payment_link: { id: 'PL1', url: 'https://square.link/u/abc', order_id: 'O1' } } } as { status: number; body: unknown }, dbFail = false } = {}) {
   const calls: { url: string; init: RequestInit }[] = [];
   const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init });
+    if (url.endsWith('/v2/bookings/availability/search'))
+      return new Response(JSON.stringify({ availabilities: [{ start_at: '2026-10-10T15:00:00Z' }] }), { status: 200 });
     if (url.startsWith('https://db.example/rest/v1/mf_agreements?')) {
       const id = /id=eq\.([^&]+)/.exec(url)?.[1];
       return new Response(JSON.stringify(agreements.includes(id!) ? [{ id }] : []), { status: 200 });
@@ -37,8 +41,8 @@ async function load(mod: 'create-checkout' | 'agreement', env: Record<string, st
   return import(`../../../api/${mod}.ts`);
 }
 
-beforeEach(() => vi.spyOn(console, 'log').mockImplementation(() => {}));
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-09T17:00:00Z')); vi.spyOn(console, 'log').mockImplementation(() => {}); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('checkout function', () => {
   it('answers CORS preflight for the site only', async () => {
@@ -59,15 +63,12 @@ describe('checkout function', () => {
     expect((await POST(post(order))).status).toBe(503);
   });
 
-  it('still takes bookings before the database key is set, noting the acceptance on the Square payment', async () => {
+  it('blocks checkout entirely without durable agreement storage', async () => {
     const { calls } = backend();
     const { POST } = await load('create-checkout', { ...ENV, SUPABASE_SECRET_KEY: '' });
-    expect((await POST(post(order))).status).toBe(428); // a database id means nothing here
-    const r = await POST(post({ ...order, agreementId: 'local', agreedAt: '2026-10-03T14:00:00.000Z' }));
-    expect(r.status).toBe(200);
-    const sent = JSON.parse(String(calls.find((c) => c.url.includes('squareup'))!.init.body));
-    expect(sent.payment_note).toContain(`Agreed: v${AGREEMENT.version} at 2026-10-03T14:00:00.000Z`);
-    expect(calls.some((c) => c.url.startsWith('https://db.example'))).toBe(false);
+    const r = await POST(post({ ...order, agreementId: 'local' }));
+    expect(r.status).toBe(503);
+    expect(calls.some(c => c.url.includes('squareup'))).toBe(false);
   });
 
   it('stops accepting local acceptances once the database is connected', async () => {
@@ -106,7 +107,7 @@ describe('checkout function', () => {
     const sq = calls.find((c) => c.url.includes('squareupsandbox'))!;
     expect((sq.init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
     const sent = JSON.parse(String(sq.init.body));
-    expect(sent.order.line_items.map((l: { catalog_object_id: string }) => l.catalog_object_id)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ', 'ME7R5HV4XSEHJ4WPTUFYWXHY']);
+    expect(sent.order.line_items.map((l: { catalog_object_id: string }) => l.catalog_object_id)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ']);
     expect(sent.payment_note).toContain(`Agreed: v${AGREEMENT.version} ${AID.slice(0, 8)}`);
 
     const save = calls.find((c) => c.url === 'https://db.example/rest/v1/mf_bookings')!;
@@ -114,18 +115,35 @@ describe('checkout function', () => {
     const row = JSON.parse(String(save.init.body));
     expect(row).toMatchObject({
       ref: out.ref, agreement_id: AID, customer_name: 'Jordan Smith', phone: '3345550123', city: 'Montgomery', notes: 'Gate code 4321',
-      appointment_date: '2026-10-10', start_minute: 600, total_cents: 24000, deposit_cents: 4800, balance_cents: 19200,
+      appointment_date: '2026-10-10', start_minute: 600, total_cents: 20000, deposit_cents: 4000, balance_cents: 16000,
       square_payment_link_id: 'PL1', square_order_id: 'O1', square_checkout_url: 'https://square.link/u/abc',
     });
-    expect(row.cars[0]).toMatchObject({ car: 1, vehicle: '2022 Toyota Camry', make: 'Toyota', size: 'sedan', packageId: 'deluxe', extraIds: ['decon'], totalCents: 24000 });
+    expect(row.cars[0]).toMatchObject({ car: 1, vehicle: '2022 Toyota Camry', make: 'Toyota', size: 'sedan', packageId: 'deluxe', extraIds: [], totalCents: 20000 });
   });
 
-  it('still sends the customer to Square if saving the build fails', async () => {
+  it('does not expose a payable link when booking storage fails', async () => {
     backend({ dbFail: true });
     const { POST } = await load('create-checkout');
     const r = await POST(post(order));
-    expect(r.status).toBe(200);
+    expect(r.status).toBe(503);
+    expect((await r.json()).url).toBeUndefined();
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('booking_save_failed'));
+  });
+
+  it('rejects an unconfigured Square Appointments service before any payment link', async () => {
+    const { calls } = backend();
+    const { POST } = await load('create-checkout', { ...ENV, SQUARE_APPOINTMENT_DELUXE_VARIATION_ID: '' });
+    const r = await POST(post(order));
+    expect(r.status).toBe(503);
+    expect(calls.some(c => c.url.endsWith('/payment-links'))).toBe(false);
+  });
+
+  it('requires manual scheduling for add-ons instead of collecting an unbookable deposit', async () => {
+    const { calls } = backend();
+    const { POST } = await load('create-checkout');
+    const r = await POST(post({ ...order, cars: [{ ...order.cars[0], extraIds: ['decon'] }] }));
+    expect(r.status).toBe(409);
+    expect(calls.some(c => c.url.endsWith('/payment-links'))).toBe(false);
   });
 
   it('uses production Square only when asked', async () => {
