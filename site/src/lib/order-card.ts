@@ -74,8 +74,8 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
     rule: token('--line-dark', 'gray'),
   };
   // Item heights include the exact number of line items; the PNG never crops a multi-car order.
-  const cardHeight = 315 + data.vehicles.reduce((sum, car) =>
-    sum + 354 + Math.max(1, car.lines.length) * 51 + 142, 0) + 312;
+  const cardHeight = 1000 + data.vehicles.reduce((sum, car) =>
+    sum + 900 + car.lines.length * 140, 0);
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH; canvas.height = cardHeight;
   const ctx = canvas.getContext('2d');
@@ -102,7 +102,9 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   rule(248);
   label('REFERENCE', PAD, 292, 18, color.muted, true);
   label(data.ref, PAD + 150, 292, 23, color.light, true);
-  let y = 335;
+  label('REQUESTED', PAD, 333, 18, color.muted, true);
+  label(data.when, PAD + 150, 333, 22, color.light, true);
+  let y = 372;
   ctx.textBaseline = 'alphabetic';
   const ready = await Promise.all(data.vehicles.map(async v =>
     ({ plate: await image(v.plateUrl), vehicle: await image(v.imageUrl) })));
@@ -157,11 +159,16 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   right('$0.00', y, 37, color.goldHi);
   y += 50;
   label('REQUEST ONLY  ·  APPOINTMENT NOT YET CONFIRMED', PAD, y, 18, color.muted, true);
-  // The dynamically measured content can exceed the conservative estimate.
-  // Canvas would silently crop; assert instead of offering an incomplete image.
+  // Trim the generous scratch canvas to the actual receipt length; long multi-car
+  // orders never crop or end in large blank black space.
   if (y + 24 > cardHeight) throw Error('Order card layout exceeds export size');
+  const finished = document.createElement('canvas');
+  finished.width = WIDTH; finished.height = Math.ceil(y + 50);
+  const out = finished.getContext('2d');
+  if (!out) throw Error('Image export is unavailable');
+  out.drawImage(canvas, 0, 0, WIDTH, finished.height, 0, 0, WIDTH, finished.height);
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('PNG could not be generated')), 'image/png');
+    finished.toBlob(blob => blob ? resolve(blob) : reject(Error('PNG could not be generated')), 'image/png');
   });
 }
 
