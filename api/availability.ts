@@ -7,6 +7,9 @@ export const OPTIONS = preflight;
 export async function GET(req: Request) {
   const origin = req.headers.get('origin');
   if (foreignOrigin(req)) return json(403, { error: 'Origin not allowed' }, origin);
+  if (process.env.SQUARE_BOOKING_LAUNCH_APPROVED !== 'true') {
+    return json(503, { error: 'Online scheduling is not open yet. Please book by text.' }, origin);
+  }
   const url = new URL(req.url);
   const date = url.searchParams.get('date') || '';
   const pkg = url.searchParams.get('package') || '';
