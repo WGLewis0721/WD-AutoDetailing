@@ -18,7 +18,7 @@ if(!slot)throw Error('No service segment');
 const segment=slot.appointment_segments.find(x=>x.service_variation_id===variation);
 const idempotency_key='mf-verify-create-cancel-20261009';
 const test=await request('/bookings',{idempotency_key,booking:{start_at:slot.start_at,location_id:process.env.SQUARE_LOCATION_ID,seller_note:'API INTEGRATION TEST—CANCEL IMMEDIATELY; not a customer booking',appointment_segments:[{duration_minutes:60,team_member_id:member,service_variation_id:variation,service_variation_version:Number(process.env.SQUARE_APPOINTMENT_EXTERIOR_VERSION)}]}});
-console.log('MF_CREATE_BOOKING HTTP='+test.status+' codes='+test.codes.join(',')+' hasId='+!!test.data.booking?.id);
+console.log('MF_CREATE_BOOKING HTTP='+test.status+' codes='+test.codes.join(',')+' errors='+JSON.stringify((test.data.errors||[]).map(e=>({category:e.category,code:e.code,detail:e.detail}))).slice(0,900)+' hasId='+!!test.data.booking?.id);
 if(!test.ok||!test.data.booking?.id)process.exit(0);
 const b=test.data.booking;
 const cancel=await request('/bookings/'+encodeURIComponent(b.id)+'/cancel',{idempotency_key:'mf-verify-cancel-20261009',booking_version:b.version});
