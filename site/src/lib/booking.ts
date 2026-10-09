@@ -460,8 +460,8 @@ async function requestLive() {
     const list = s.cars.map((c, i) => {
       const p = packages.find(p => p.id === c.packageId);
       const extrasText = c.extraIds.map(id => extras.find(e => e.id === id)?.name).filter(Boolean);
-      return `Vehicle ${i + 1}: ${carLabel(c)}\\nService: ${p?.name || 'Detail'}\\nAdd-ons: ${extrasText.length ? extrasText.join(', ') : 'None'}`;
-    }).join('\\n\\n');
+      return `Vehicle ${i + 1}: ${carLabel(c)}\nService: ${p?.name || 'Detail'}\nAdd-ons: ${extrasText.length ? extrasText.join(', ') : 'None'}`;
+    }).join('\n\n');
     const calendarUrl = typeof data.calendarUrl === 'string' && data.calendarUrl.startsWith('https://')
       ? data.calendarUrl : '';
     const smsBody = [
@@ -481,7 +481,7 @@ async function requestLive() {
       '',
       'Please confirm availability and send payment instructions.',
       ...(calendarUrl ? ['', 'FOR MIRROR FINISH — Add pending request to Google Calendar:', calendarUrl] : []),
-    ].join('\\n');
+    ].join('\n');
     const smsLink = SITE.phoneSms + '?body=' + encodeURIComponent(smsBody);
     pay = 'idle';
     $('app').innerHTML = `<section class="thanks wrap request-confirmation" role="status">
