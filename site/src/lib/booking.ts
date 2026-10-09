@@ -4,7 +4,8 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
-import { createStill, vehicleStillUrl, type Still } from './stills';
+import { createStill, vehicleStillUrl, vehicleStagePlateUrl, type Still } from './stills';
+import { renderOrderCardPng, downloadCardBlob, shareCardBlob, cardFilename, type OrderCardData } from './order-card';
 import { AGREEMENT, agreementHash } from '../data/agreement';
 
 interface Car {
@@ -445,7 +446,10 @@ async function requestLive() {
       const choices = quoted.cars[i].lines.map(l =>
         `<li><span>${esc(l.label)}</span><strong>${fmt(l.cents)}</strong></li>`).join('');
       const art = c.mesh
-        ? `<img src="${esc(vehicleStillUrl(c.mesh))}" alt="Illustration of the selected ${esc(carLabel(c))} vehicle style" loading="eager">`
+        ? `<div class="request-art-scene">
+            <img class="request-art-plate" src="${esc(vehicleStagePlateUrl())}" alt="" aria-hidden="true" loading="eager">
+            <img class="request-art-vehicle" src="${esc(vehicleStillUrl(c.mesh))}" alt="Illustration of the selected ${esc(carLabel(c))} vehicle style" loading="eager">
+          </div>`
         : icon('car', 70);
       return `<section class="request-item">
         <div class="request-item-art">${art}</div>
@@ -457,6 +461,18 @@ async function requestLive() {
         </div>
       </section>`;
     }).join('');
+    const orderCard: OrderCardData = {
+      ref: data.ref,
+      when,
+      totalCents, depositCents, balanceCents,
+      vehicles: s.cars.map((c, i) => ({
+        name: carLabel(c),
+        packageName: packages.find(p => p.id === c.packageId)?.name ?? 'Detail',
+        plateUrl: vehicleStagePlateUrl(),
+        imageUrl: c.mesh ? vehicleStillUrl(c.mesh) : null,
+        lines: quoted.cars[i].lines.map(line => ({ label: line.label, cents: line.cents })),
+      })),
+    };
     const list = s.cars.map((c, i) => {
       const p = packages.find(p => p.id === c.packageId);
       const extrasText = c.extraIds.map(id => extras.find(e => e.id === id)?.name).filter(Boolean);
@@ -488,7 +504,7 @@ async function requestLive() {
       <p class="eyebrow">REQUEST RECEIVED · ${esc(data.ref)}</p>
       <h1>Your detail is <em>one step closer.</em></h1>
       <p class="lead">Here's your complete order. Your preferred time is awaiting confirmation; no payment was taken.</p>
-      <article class="request-receipt" aria-label="Mirror Finish order summary">
+      <article id="request-order-card" class="request-receipt" aria-label="Mirror Finish order summary">
         <header class="request-receipt-header">
           <div><span class="request-overline">MIRROR FINISH / ORDER SUMMARY</span><strong>Detail request</strong></div>
           <span class="request-status">Awaiting confirmation</span>
@@ -510,10 +526,52 @@ async function requestLive() {
       <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
       <div class="request-actions">
         <a class="btn btn--lg" href="${smsLink}">${icon('phone', 19)}<span>Text my order to confirm</span></a>
-        <a class="btn btn--ghost" href="${HOME}">Back to the home page</a>
+        <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
+        <button id="share-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Share order card</span></button>
       </div>
+      <p id="order-card-export-status" class="request-export-status" role="status" aria-live="polite"></p>
+      <p><a class="link" href="${HOME}">Back to the home page</a></p>
       <p class="fine">Vehicle artwork illustrates the selected body style. Final pricing may be adjusted after vehicle inspection, as described in your agreement.</p>
     </section>`;
+    // Render once while the customer reads the confirmation: on iOS the
+    // native share sheet must be triggered directly from a tap, rather than
+    // waiting for slow images to download after the user has tapped.
+    let imagePromise: Promise<Blob> | null = null;
+    const imageBlob = () => {
+      if (!imagePromise) {
+        imagePromise = renderOrderCardPng(orderCard).catch(error => {
+          imagePromise = null; throw error;
+        });
+      }
+      return imagePromise;
+    };
+    void imageBlob().catch(() => { /* Retry on user action if artwork was slow. */ });
+    const exportStatus = $('order-card-export-status');
+    const downloadButton = $<HTMLButtonElement>('download-order-card');
+    const shareButton = $<HTMLButtonElement>('share-order-card');
+    const exportCard = async (action: 'download' | 'share') => {
+      const button = action === 'download' ? downloadButton : shareButton;
+      button.disabled = true;
+      exportStatus.textContent = 'Preparing your order image…';
+      try {
+        const image = await imageBlob();
+        const name = cardFilename(data.ref);
+        if (action === 'download') {
+          downloadCardBlob(image, name);
+          exportStatus.textContent = 'Your order card PNG is ready to save.';
+        } else {
+          const result = await shareCardBlob(image, name, data.ref);
+          exportStatus.textContent = result === 'downloaded' ? 'Image downloaded. Share it from Photos or Files.'
+            : result === 'shared' ? 'Order card shared.' : '';
+        }
+      } catch {
+        exportStatus.textContent = 'Could not create the image. Please try again or use the text summary.';
+      } finally {
+        button.disabled = false;
+      }
+    };
+    downloadButton.addEventListener('click', () => { void exportCard('download'); });
+    shareButton.addEventListener('click', () => { void exportCard('share'); });
     try { localStorage.removeItem(KEY); } catch {}
     window.scrollTo({top:0});
   } catch {
