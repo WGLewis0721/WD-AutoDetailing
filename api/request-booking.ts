@@ -6,6 +6,7 @@ import { SITE } from '../site/src/data/site.js';
 import { bookingCars, OrderError, priceOrder, validate, type CheckoutOrder } from '../site/src/lib/checkout.js';
 import { BookingUnavailable, ensureSlot } from './_square-booking.js';
 import { db, dbReady, foreignOrigin, json, log, preflight, UUID } from './_lib.js';
+import { calendarRequestLink } from './_calendar-request.js';
 
 export const OPTIONS = preflight;
 const ref = () => 'MF-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
@@ -62,7 +63,12 @@ export async function POST(req: Request) {
       total_cents:priced.totalCents,deposit_cents:priced.depositCents,balance_cents:priced.balanceCents,
     }});
     log('appointment_request_received',{ref:reference,multi:!simple});
-    return json(200,{ref:reference,confirmed:false,charged:false},origin);
+    const calendarUrl = await calendarRequestLink(reference, req.url);
+    return json(200,{
+      ref:reference, confirmed:false, charged:false,
+      totalCents:priced.totalCents, depositCents:priced.depositCents, balanceCents:priced.balanceCents,
+      calendarUrl,
+    },origin);
   } catch(e) {
     log('appointment_request_save_failed',{error:String(e).slice(0,120)});
     return json(503,{error:'We could not save your request. Please text us instead.'},origin);
