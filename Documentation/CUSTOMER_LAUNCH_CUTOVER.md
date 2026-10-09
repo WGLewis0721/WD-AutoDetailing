@@ -14,6 +14,14 @@ Square seller-level CreateBooking requires Appointments Plus/Premium and relevan
 
 **Remaining merchant action:** Verify an active eligible Square Appointments Plus/Premium plan for this location and that this Square application has `APPOINTMENTS_WRITE` and `APPOINTMENTS_ALL_WRITE`. If upgraded recently, check entitlement propagation with Square Support. Retry a controlled create/cancel booking API test and payment-to-appointment validation before enabling `SQUARE_BOOKING_LAUNCH_APPROVED=true`.
 
+## Request receipt + manual Google Calendar workflow (Option A)
+
+- After the customer submits a request, the custom Mirror Finish confirmation screen shows an illustrated vehicle-by-vehicle order card using the same assets as the vehicle configurator. The recorded server quote appears as service total, 20% deposit **at checkout after confirmation**, outstanding balance after the detail, and **charged today $0.00**. The screen never claims the appointment is confirmed.
+- The customer's **Text my order to confirm** action opens a prefilled SMS with the vehicle/service/add-ons, preferred time and address, all three prices, request reference, and an owner-only signed **Add pending request to Google Calendar** link. SMS is composed by the device; the customer must press Send.
+- Operator: review the request (Supabase `mf_bookings`, status `request_pending`) or receive the customer's SMS. Tap the Google Calendar link in the SMS. The API validates the signed reference and opens a prefilled **PENDING** Google Calendar event, including the customer, vehicles, address, 20% deposit and outstanding balance. **Select Save manually.** This creates no Square appointment and does not write to Google Calendar without your action.
+- The calendar link carries only a booking reference and HMAC signature, not customer PII in the URL itself. Treat the SMS/link as private: anyone with the signed link can open its event draft containing the order's contact information. Request links are generated only for saved requests.
+- Before sending a manual Square payment link for the deposit, personally confirm the selected date/time. Once the deposit is collected, update your calendar entry manually. This implementation does **not** automatically email/text notifications, charge cards, create Square bookings, or synchronize calendar updates.
+
 ## Dedicated Supabase project — provisioned October 9, 2026
 
 - Project: **Mirror Finish** (`potuicptomrjmtarlrpt`, `us-east-1`).
