@@ -4,7 +4,7 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
-import { createStill, type Still } from './stills';
+import { createStill, vehicleStillUrl, type Still } from './stills';
 import { AGREEMENT, agreementHash } from '../data/agreement';
 
 interface Car {
@@ -422,24 +422,98 @@ async function payLive() {
 async function requestLive() {
   pay = 'processing'; render();
   try {
-    const res = await fetch(REQUEST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
+    const res = await fetch(REQUEST_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkoutOrder()),
+    });
     const data = await res.json().catch(() => ({}));
     if (res.status === 428) { forgetAgreement(); pay='idle'; render(); openGate(); return; }
     if (res.status === 409) { pay='idle'; s.startMin=-1; s.step=3; availability=null; slotLost=true; render(true); return; }
-    if (!res.ok || !/^MF-[A-Z0-9]{8}$/.test(data.ref)) throw new Error(data.error || 'Request unavailable');
+    if (!res.ok || !/^MF-[A-Z0-9]{8}$/.test(data.ref)) throw Error(data.error || 'Request unavailable');
+
+    // Use the server-repriced, saved totals, not editable values from the browser.
+    const { totalCents, depositCents, balanceCents } = data;
+    if (![totalCents, depositCents, balanceCents].every(
+      v => Number.isSafeInteger(v) && v >= 0) ||
+      totalCents !== depositCents + balanceCents || depositCents <= 0) {
+      throw Error('Server quote unavailable');
+    }
+    const quoted = order();
+    const when = whenLabel();
+    const vehicleLines = s.cars.map((c, i) => {
+      const p = packages.find(p => p.id === c.packageId);
+      const choices = quoted.cars[i].lines.map(l =>
+        `<li><span>${esc(l.label)}</span><strong>${fmt(l.cents)}</strong></li>`).join('');
+      const art = c.mesh
+        ? `<img src="${esc(vehicleStillUrl(c.mesh))}" alt="Illustration of the selected ${esc(carLabel(c))} vehicle style" loading="eager">`
+        : icon('car', 70);
+      return `<section class="request-item">
+        <div class="request-item-art">${art}</div>
+        <div class="request-item-body">
+          <span class="request-item-no">VEHICLE ${i + 1}</span>
+          <h3>${esc(carLabel(c))}</h3>
+          <p>${esc(p?.name ?? 'Detail')} detail</p>
+          <ul class="request-items">${choices}</ul>
+        </div>
+      </section>`;
+    }).join('');
+    const list = s.cars.map((c, i) => {
+      const p = packages.find(p => p.id === c.packageId);
+      const extrasText = c.extraIds.map(id => extras.find(e => e.id === id)?.name).filter(Boolean);
+      return `Vehicle ${i + 1}: ${carLabel(c)}\\nService: ${p?.name || 'Detail'}\\nAdd-ons: ${extrasText.length ? extrasText.join(', ') : 'None'}`;
+    }).join('\\n\\n');
+    const calendarUrl = typeof data.calendarUrl === 'string' && data.calendarUrl.startsWith('https://')
+      ? data.calendarUrl : '';
+    const smsBody = [
+      'MIRROR FINISH — APPOINTMENT REQUEST',
+      'Reference: ' + data.ref,
+      'Customer: ' + s.name.trim(),
+      'Preferred: ' + when,
+      'Address: ' + address(),
+      '',
+      list,
+      '',
+      'SERVICE TOTAL: ' + fmt(totalCents),
+      'DEPOSIT AT CHECKOUT (20%): ' + fmt(depositCents),
+      'BALANCE DUE AFTER DETAIL: ' + fmt(balanceCents),
+      'CHARGED TODAY: $0.00',
+      'Status: Pending confirmation',
+      '',
+      'Please confirm availability and send payment instructions.',
+      ...(calendarUrl ? ['', 'FOR MIRROR FINISH — Add pending request to Google Calendar:', calendarUrl] : []),
+    ].join('\\n');
+    const smsLink = SITE.phoneSms + '?body=' + encodeURIComponent(smsBody);
     pay = 'idle';
-    const when = esc(whenLabel());
-    const details = s.cars.map((c,i) => `Car ${i+1}: ${carLabel(c)} — ${packages.find(p => p.id===c.packageId)?.name || ''}${c.extraIds.length ? ' + add-ons' : ''}`).join('; ');
-    const smsBody = encodeURIComponent(`Mirror Finish request ${data.ref}. ${s.name.trim()}, ${details}. Preferred ${when}, ${address()}. Please confirm availability and deposit instructions.`);
-    const smsLink = SITE.phoneSms + '?body=' + smsBody;
-    $('app').innerHTML = `<section class="thanks wrap" role="status">
-      <p class="eyebrow">Request received · ${esc(data.ref)}</p>
-      <h1>We'll confirm your <em>appointment.</em></h1>
-      <p class="lead">Your vehicle, selected services and preferred time have been saved. This is a request, not a confirmed booking.</p>
-      <div class="card box"><p><b>Preferred time:</b> ${when}</p><p><b>Reference:</b> ${esc(data.ref)}</p><p><b>Charged today:</b> $0.00</p></div>
-      <p class="note">To complete scheduling, send your reference by text. We'll verify your appointment and arrange the deposit before confirming.</p>
-      <a class="btn btn--lg" href="${smsLink}">Text us to confirm your request</a>
-      <p><a class="link" href="${HOME}">Back to the home page</a></p></section>`;
+    $('app').innerHTML = `<section class="thanks wrap request-confirmation" role="status">
+      <p class="eyebrow">REQUEST RECEIVED · ${esc(data.ref)}</p>
+      <h1>Your detail is <em>one step closer.</em></h1>
+      <p class="lead">Here's your complete order. Your preferred time is awaiting confirmation; no payment was taken.</p>
+      <article class="request-receipt" aria-label="Mirror Finish order summary">
+        <header class="request-receipt-header">
+          <div><span class="request-overline">MIRROR FINISH / ORDER SUMMARY</span><strong>Detail request</strong></div>
+          <span class="request-status">Awaiting confirmation</span>
+        </header>
+        <div class="request-receipt-meta">
+          <span>REFERENCE <b>${esc(data.ref)}</b></span>
+          <span>REQUESTED <b>${esc(when)}</b></span>
+        </div>
+        ${vehicleLines}
+        <div class="request-price">
+          <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
+          <div class="request-deposit"><span>Deposit at checkout, after confirmation <small>20%</small></span><strong>${fmt(depositCents)}</strong></div>
+          <div><span>Remaining balance after your detail</span><strong>${fmt(balanceCents)}</strong></div>
+        </div>
+        <footer class="request-receipt-footer">
+          <span>CHARGED TODAY</span><b>$0.00</b>
+        </footer>
+      </article>
+      <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
+      <div class="request-actions">
+        <a class="btn btn--lg" href="${smsLink}">${icon('phone', 19)}<span>Text my order to confirm</span></a>
+        <a class="btn btn--ghost" href="${HOME}">Back to the home page</a>
+      </div>
+      <p class="fine">Vehicle artwork illustrates the selected body style. Final pricing may be adjusted after vehicle inspection, as described in your agreement.</p>
+    </section>`;
     try { localStorage.removeItem(KEY); } catch {}
     window.scrollTo({top:0});
   } catch {
