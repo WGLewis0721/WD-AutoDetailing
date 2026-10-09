@@ -5,7 +5,7 @@ export async function GET() {
     'SQUARE_APPOINTMENT_TEAM_MEMBER_ID','SQUARE_APPOINTMENT_DELUXE_VARIATION_ID',
     'SQUARE_APPOINTMENT_DELUXE_VERSION','SQUARE_APPOINTMENT_EXTERIOR_VARIATION_ID',
     'SQUARE_APPOINTMENT_EXTERIOR_VERSION','SQUARE_APPOINTMENT_INTERIOR_VARIATION_ID',
-    'SQUARE_APPOINTMENT_INTERIOR_VERSION','SQUARE_WEBHOOK_URL'];
+    'SQUARE_APPOINTMENT_INTERIOR_VERSION','SQUARE_WEBHOOK_URL','SQUARE_WEBHOOK_SUBSCRIPTION_ID'];
   const missing = required.filter(k => !process.env[k]);
   // A complete env list does not prove Square can create a real booking after payment.
   // Only enable customer checkout after a verified, production-safe end-to-end cutover.
