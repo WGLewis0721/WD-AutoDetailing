@@ -15,17 +15,20 @@ const reply = (status: number) => new Response(status === 200 ? 'ok' : 'unavaila
 async function verify(raw: string, signature: string) {
   const url = process.env.SQUARE_WEBHOOK_URL;
   if (!url || !signature) return false;
-  const response = await fetch(SQUARE_API + '/v2/webhooks/subscriptions', {
+  const id = process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID;
+  if (!id || !/^wbhk_[a-z0-9]{32}$/.test(id)) throw new Error('Missing Square webhook subscription ID');
+  const response = await fetch(SQUARE_API + '/v2/webhooks/subscriptions/' + id, {
     headers: { Authorization: 'Bearer ' + process.env.SQUARE_ACCESS_TOKEN,
       'Square-Version': SQUARE_VERSION, 'Content-Type': 'application/json' },
   });
   if (!response.ok) throw new Error('Unable to retrieve Square webhook subscription');
   const data = await response.json();
-  const subscription = (Array.isArray(data.subscriptions) ? data.subscriptions : []).find(
-    (s: { enabled?: boolean; notification_url?: string; signature_key?: string; event_types?: string[] }) =>
-      s.enabled && s.notification_url === url &&
-      s.event_types?.includes('payment.created') && s.event_types?.includes('payment.updated'));
-  if (!subscription?.signature_key) throw new Error('No valid active Square webhook subscription key');
+  const subscription = data.subscription;
+  if (subscription?.id !== id || subscription.enabled !== true ||
+      subscription.notification_url !== url ||
+      !subscription.event_types?.includes('payment.created') ||
+      !subscription.event_types?.includes('payment.updated') ||
+      !subscription.signature_key) throw new Error('Invalid active Square webhook subscription');
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(subscription.signature_key),
     { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
   try {
@@ -76,7 +79,7 @@ async function appointment(row: StoredBooking, paymentCustomerId?: string) {
   return { bookingId: b.booking.id as string, customerId };
 }
 export async function POST(req: Request) {
-  if (!dbReady() || !process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_WEBHOOK_URL) return reply(503);
+  if (!dbReady() || !process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_WEBHOOK_URL || !process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID) return reply(503);
   const raw = await req.text();
   let valid = false;
   try { valid = await verify(raw, req.headers.get('x-square-hmacsha256-signature') || ''); }
