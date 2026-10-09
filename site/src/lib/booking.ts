@@ -33,6 +33,8 @@ const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
 const AVAILABILITY_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'availability');
 const STATUS_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'booking-status');
 const HEALTH_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'health');
+const REQUEST_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'request-booking');
+let launchMode: 'request' | 'paid' = 'request';
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -42,7 +44,7 @@ let agreed: Agreed | null = readAgreed();
 
 const KEY = 'mf-build-v3';
 const OTHER = 'other';
-const STEPS = ['Vehicles', 'Build', 'When', 'Details', 'Deposit'];
+const STEPS = ['Vehicles', 'Build', 'When', 'Details', 'Review'];
 const REWARD = { title: '$10 off your next detail', body: 'Preview reward. Mirror Finish sets the final offer before launch.' };
 const TIPS: Record<string, string> = {
   sedan: 'Dry your car after rain so water spots do not etch into the clear coat.',
@@ -124,6 +126,7 @@ async function loadAvailability() {
   }
 }
 function verifiedSlot() {
+  if (launchMode === 'request' && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) return !!s.date && s.startMin >= 0;
   return !LIVE || !!(availability && !availability.loading && !availability.error &&
     availability.date === s.date && availability.pkg === s.cars[0]?.packageId &&
     s.cars.length === 1 && s.cars[0].extraIds.length === 0 &&
@@ -234,13 +237,16 @@ function panelWhen(): string {
   const quick = nextAvailable(total).map((v) => `<button type="button" class="chipbtn ${s.date === v ? 'on' : ''}" data-date="${v}">${new Date(v + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</button>`).join('');
   let slotsHtml = '<p class="muted hint">Choose a day to see start times.</p>';
   if (s.date) {
-    const all = slotsFor(s.date, total).map(slot => ({ ...slot, taken: LIVE &&
+    const preferenceOnly = launchMode === 'request' && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0);
+    const all = slotsFor(s.date, total).map(slot => ({ ...slot, taken: LIVE && !preferenceOnly &&
       !(availability?.date === s.date && availability?.pkg === s.cars[0]?.packageId &&
         !availability.loading && !availability.error && availability.starts.includes(slot.startMin)) }));
-    if (LIVE && s.cars.length !== 1) slotsHtml = '<p class="note">Multiple vehicles need manual scheduling. Please text us to book.</p>';
+    if (LIVE && s.cars.length !== 1 && launchMode === 'paid') slotsHtml = '<p class="note">Multiple vehicles need manual scheduling. Please text us to book.</p>';
     const grp = (name: string, list: typeof all) => list.length ? `<div class="grp"><b>${name}</b><div class="slots">${list.map((x) => `<button type="button" class="slot ${s.startMin === x.startMin ? 'on' : ''}" data-start="${x.startMin}" ${x.taken ? 'disabled' : ''}>${x.label}${x.taken ? '<small>Booked</small>' : ''}</button>`).join('')}</div></div>` : '';
-    if (LIVE && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) {
+    if (launchMode === 'paid' && LIVE && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) {
       slotsHtml = '<p class="note">Multi-car or add-on bookings need manual scheduling. Please text us to arrange your time.</p>';
+    } else if (preferenceOnly) {
+      slotsHtml = '<p class="note">Choose your preferred time. Multi-vehicle and add-on availability will be confirmed personally before any deposit is requested.</p>' + grp('Preferred morning', all.filter((x) => x.startMin < 720)) + grp('Preferred afternoon', all.filter((x) => x.startMin >= 720));
     } else if (LIVE && availability?.loading) {
       slotsHtml = '<p class="muted hint" role="status">Checking Square for available appointments…</p>';
     } else if (LIVE && availability?.error) {
@@ -261,7 +267,7 @@ function panelWhen(): string {
     <div class="calgrid">${monthDays(m, total)}</div>
     <ul class="legend"><li><i class="k open"></i>Open</li><li><i class="k full"></i>Fully booked</li><li><i class="k closed"></i>Closed</li></ul></div>
     ${s.date ? `<h3 class="sub">${new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>` : ''}${slotsHtml}
-    ${LIVE ? `<p class="note">Available times come from Square Appointments and are verified again before checkout.</p>` : `<p class="note">Preview mode. Times are not confirmed.</p>`}`;
+    ${LIVE ? `<p class="note">${launchMode === 'request' ? 'You are requesting a time, not reserving one. No payment will be collected until the appointment is confirmed.' : 'Available times come from Square Appointments and are verified again before checkout.'}</p>` : `<p class="note">Preview mode. Times are not confirmed.</p>`}`;
 }
 
 const describe = (id: string) => (errors[id] ? `aria-invalid="true" aria-describedby="e-${id}"` : '');
@@ -291,14 +297,14 @@ function panelDeposit(): string {
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
   const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
-    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>We could not open the secure checkout.</b> Nothing was charged. Try again in a moment, or ${textUs('text us')} and we will book it with you.</div>` : '';
+    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>${launchMode === 'request' ? 'We could not submit your request.' : 'We could not open the secure checkout.'}</b> Nothing was charged. Try again, or ${textUs('text us')} to arrange your appointment.</div>` : '';
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
-    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>Deposit today (20%)</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
+    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
     <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection.</span></label>
     <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
-    <p class="note">Preview mode: no payment is taken in this version.</p>`;
+    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : 'Square will collect the 20% deposit securely after you continue.'}</p>`;
 }
 
 /* ---------- summary ---------- */
@@ -327,10 +333,10 @@ function summary() {
   const when = s.date && s.startMin >= 0 ? `<div class="ln sub"><span>When</span><b>${whenLabel()}</b></div>` : '';
   $('summary').innerHTML = `<div class="sumhead"><span>Your order</span><b>${rd}% ready</b></div><div class="meter" aria-hidden="true"><i style="width:${rd}%"></i></div>${groups}${where}${when}
     <div class="ln tot"><span>Total</span><b class="num" id="grand">${fmt(lastTotal)}</b></div>
-    <div class="ln"><span>Deposit today (20%)</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>`;
+    <div class="ln"><span>${launchMode === 'request' ? 'Deposit after confirmation (20%)' : 'Deposit today (20%)'}</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>`;
   tween($('grand'), lastTotal, o.totalCents);
   tween($('dep'), lastDeposit, o.depositCents);
-  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b><small>${fmt(o.depositCents)} today${s.cars.length > 1 ? ' · ' + s.cars.length + ' cars' : ''}</small>` : '<small>Build your order</small>';
+  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b><small>${fmt(o.depositCents)} ${launchMode === 'request' ? 'after confirmation' : 'today'}${s.cars.length > 1 ? ' · ' + s.cars.length + ' cars' : ''}</small>` : '<small>Build your order</small>';
   lastTotal = o.totalCents; lastDeposit = o.depositCents;
 }
 
@@ -351,7 +357,7 @@ function render(focus = false) {
   if (focus) { panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter'); panel.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true }); }
   const o = order();
   const busy = pay === 'processing';
-  const label = busy ? 'Processing…' : s.step === 5 ? `${pay === 'declined' ? 'Try again: pay' : 'Pay'} ${fmt(o.depositCents)} deposit to book` : s.step === 4 ? 'Review order' : 'Continue';
+  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : `${pay === 'declined' ? 'Try again: pay' : 'Pay'} ${fmt(o.depositCents)} deposit to book`) : s.step === 4 ? 'Review order' : 'Continue';
   const ok = s.step === 4 ? true : valid(s.step);
   for (const id of ['next', 'mnext']) { const b = $(id); b.innerHTML = `<span>${id === 'mnext' && s.step < 5 ? 'Next' : label}</span>${busy ? '' : icon('arrow', 18)}`; b.toggleAttribute('disabled', !ok); b.setAttribute('aria-busy', String(busy)); }
   $('back').toggleAttribute('hidden', s.step === 1);
@@ -413,7 +419,36 @@ async function payLive() {
   }
 }
 
+async function requestLive() {
+  pay = 'processing'; render();
+  try {
+    const res = await fetch(REQUEST_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 428) { forgetAgreement(); pay='idle'; render(); openGate(); return; }
+    if (res.status === 409) { pay='idle'; s.startMin=-1; s.step=3; availability=null; slotLost=true; render(true); return; }
+    if (!res.ok || !/^MF-[A-Z0-9]{8}$/.test(data.ref)) throw new Error(data.error || 'Request unavailable');
+    pay = 'idle';
+    const when = esc(whenLabel());
+    const details = s.cars.map((c,i) => `Car ${i+1}: ${carLabel(c)} — ${packages.find(p => p.id===c.packageId)?.name || ''}${c.extraIds.length ? ' + add-ons' : ''}`).join('; ');
+    const smsBody = encodeURIComponent(`Mirror Finish request ${data.ref}. ${s.name.trim()}, ${details}. Preferred ${when}, ${address()}. Please confirm availability and deposit instructions.`);
+    const smsLink = SITE.phoneSms + '?body=' + smsBody;
+    $('app').innerHTML = `<section class="thanks wrap" role="status">
+      <p class="eyebrow">Request received · ${esc(data.ref)}</p>
+      <h1>We'll confirm your <em>appointment.</em></h1>
+      <p class="lead">Your vehicle, selected services and preferred time have been saved. This is a request, not a confirmed booking.</p>
+      <div class="card box"><p><b>Preferred time:</b> ${when}</p><p><b>Reference:</b> ${esc(data.ref)}</p><p><b>Charged today:</b> $0.00</p></div>
+      <p class="note">To complete scheduling, send your reference by text. We'll verify your appointment and arrange the deposit before confirming.</p>
+      <a class="btn btn--lg" href="${smsLink}">Text us to confirm your request</a>
+      <p><a class="link" href="${HOME}">Back to the home page</a></p></section>`;
+    try { localStorage.removeItem(KEY); } catch {}
+    window.scrollTo({top:0});
+  } catch {
+    pay='unavailable'; render(true);
+  }
+}
+
 function payDeposit() {
+  if (LIVE && launchMode === 'request') { void requestLive(); return; }
   if (LIVE) { void payLive(); return; }
   pay = 'processing'; render();
   window.setTimeout(() => {
@@ -628,18 +663,11 @@ function startBooking() {
 async function startWithReadinessCheck() {
   try {
     const res = await fetch(HEALTH_URL, { cache: 'no-store' });
-    if (res.ok) { startBooking(); return; }
-  } catch { /* offline or API unavailable: manual bookings remain possible */ }
-  // The Square-hosted booking calendar is already configured with genuine
-  // appointments and available slots. Use it instead of an unverified custom
-  // charge-before-appointment flow until Square payment-to-booking is proven.
-  $('app').innerHTML = `<section class="thanks wrap" role="status">
-    <p class="eyebrow">Book online</p><h1>Let's schedule your <em>detail.</em></h1>
-    <p class="lead">Choose your service and a real available time with Square Appointments. Square will handle your booking confirmation.</p>
-    <a class="btn btn--lg" href="${SITE.bookingUrl}">See available times</a>
-    <p class="muted">Prefer a custom quote or need help with more than one vehicle?</p>
-    <a class="link" href="${SITE.phoneSms}">Text ${SITE.phoneDisplay} to schedule</a>
-    <p><a class="link" href="${HOME}">View packages and services</a></p></section>`;
+    launchMode = res.ok ? 'paid' : 'request';
+  } catch {
+    launchMode = 'request'; // Keep the custom builder usable; customer can text if the API is unavailable.
+  }
+  startBooking();
 }
 export function initBooking() {
   if (returnFromSquare()) return;
