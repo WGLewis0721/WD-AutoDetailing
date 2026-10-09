@@ -1,30 +1,19 @@
 # Mirror Finish — production booking cutover
 
-## State as of October 9, 2026
+## Launch result — October 9, 2026
 
-**Customer booking launch:** The public `/book/` page routes customers to Square's own enabled, official, bookable appointment calendar:
-`https://square.site/book/LJEJ2Y0KH577X/mirror-finish-mobile-detailing`.
-Square confirms bookings and handles its own checkout rules. The text/SMS option remains available for custom quotes, multi-car bookings and questions. The old quote builder code remains but is not presented during the guarded custom-checkout state.
+**Mirror Finish custom booking flow is restored.** Customers choose vehicles, service, add-ons, preferred date/time, address and contact details, and agree to terms. For one-car/no-add-on choices the site reads actual Square availability. While Square seller-level booking writes are denied, the complete build is saved as an **uncharged appointment request** under `mf_bookings.status=request_pending`. The site clearly says the appointment is NOT confirmed and provides a prefilled SMS to the detailer containing the reference.
 
-**Verified production:** Square's location booking profile reports online booking enabled and provided the URL above. Square live Bookings API returned 510 Deluxe and 570 Exterior/Interior appointment slots across the checked 30-day range. Staff and all three catalog variations are bookable, with matching 120/60/60-minute durations. Square's subscription detail returned the active HMAC signing key and the Square synthetic signed payment webhook returned HTTP 200 with passes_filter=true. These probes created no real bookings or payments.
+**Verified blocker:** a controlled production test called `POST /v2/bookings` using a real available service slot, no customer and no charge. Square returned `HTTP 403`, `AUTHENTICATION_ERROR/FORBIDDEN`, with the detail: `Merchant subscription does not support write operations.` No booking was created. The test script was removed and its one-time execution switch deactivated.
 
-**Custom deposit flow remains intentionally locked:** `SQUARE_BOOKING_LAUNCH_APPROVED` is unset. No one can be charged through the custom checkout until the deposit-to-Square-appointment completion path has been verified end-to-end. Do not conflate the live Square-hosted calendar with completion of the custom workflow.
+Square seller-level CreateBooking requires Appointments Plus/Premium and relevant permissions. Actual availability, staff bookability and signed webhook HTTP 200 do NOT establish permission to create appointments.
 
+**Customer deposits remain disabled.** The explicit `SQUARE_BOOKING_LAUNCH_APPROVED` flag is unset. No real payment may occur before appointment-write permission works and a controlled payment-to-booking test passes. The on-site fallback is a request, not a reservation.
 
+**Operator procedure:** In Supabase → Mirror Finish → Table Editor → `mf_bookings`, filter `status=request_pending`. Contact the customer using their submitted phone or their prefilled SMS. Confirm the requested appointment in Square manually, then arrange the deposit. The website does not send automatic operator notifications.
 
-**Online deposits remain locked** until a controlled successful post-payment Square Appointments test. Production requires the explicit `SQUARE_BOOKING_LAUNCH_APPROVED=true` environment switch, which has NOT been set; SMS scheduling remains available.
+**Remaining merchant action:** Verify an active eligible Square Appointments Plus/Premium plan for this location and that this Square application has `APPOINTMENTS_WRITE` and `APPOINTMENTS_ALL_WRITE`. If upgraded recently, check entitlement propagation with Square Support. Retry a controlled create/cancel booking API test and payment-to-appointment validation before enabling `SQUARE_BOOKING_LAUNCH_APPROVED=true`.
 
-**Completed:** The owner-supplied Square webhook signature key and URL were saved in Vercel Production. A one-time production Square API job verified the seller, team, prices, and service variations, then updated Square Appointments service durations. The job re-read all three and confirmed:
-
-| Service | New duration | Verified Square variation version |
-|---|---:|---|
-| Deluxe | 120 minutes | `1791557314880` |
-| Exterior | 60 minutes | `1791557315543` |
-| Interior | 60 minutes | `1791557316076` |
-
-These new versions are already reflected in the Vercel Production environment. The job also returned `MF_WEBHOOK_SUBSCRIPTION_OK`: enabled subscription, matching notification URL and signature key, and both `payment.created` and `payment.updated` events. The one-time maintenance script has been removed and its execution flag disabled.
-
-**Before enabling paid appointments:** Verify seller-level Square Appointments privileges, perform a no-charge availability probe, and exercise a controlled deposit-to-appointment smoke test (sandbox preferred). Confirm webhook signature and duplicate-delivery idempotency. Only then set `SQUARE_BOOKING_LAUNCH_APPROVED=true` and redeploy.
 ## Dedicated Supabase project — provisioned October 9, 2026
 
 - Project: **Mirror Finish** (`potuicptomrjmtarlrpt`, `us-east-1`).
