@@ -10,24 +10,25 @@ backend code fails closed until the dependencies below are configured. The
 old publicly deployed checkout remains on the previous main branch until a
 verified deployment replaces it.
 
-## Confirmed account limitation
+## Dedicated Supabase project — provisioned October 9, 2026
 
-Supabase organization **Apex** has 2/2 active free projects:
-- Studigo (active; serves Studigo)
-- An unnamed September 8 project (active; actually holds APEX application tables).
+- Project: **Mirror Finish** (`potuicptomrjmtarlrpt`, `us-east-1`).
+- API base: `https://potuicptomrjmtarlrpt.supabase.co`.
+- Organization: Apex (only accessible Supabase organization).
+- Supabase creation cost quotation: $0/month, within the account's free project allocation.
+- The existing APEX application database (`fnmxlmjrkgojowpzrcwa`) was paused by the owner to release the active-project slot; it has not been deleted or altered as part of this work.
+- The migration in `supabase/migrations/20261009_mirror_finish.sql` was applied successfully.
+- `mf_agreements` and `mf_bookings` have RLS enabled, no public policies, and have been verified in the new database.
+- Legacy same-named tables in Studigo contained zero rows when checked on October 9; no customer rows needed copying.
+- The existing Vercel `SUPABASE_URL` environment variable now points at Mirror Finish for Production and Preview.
 
-Neither should be paused. Supabase rejected creating \`Mirror Finish\` in us-east-1
-with a 2-active-free-project limit. The cost quote was $0/month, but that does not
-override the project count restriction. Upgrade the Supabase org, or intentionally
-retire one of those live applications after a migration. Then create dedicated
-\`Mirror Finish\` and run \`supabase/migrations/20261009_mirror_finish.sql\`.
-Never copy Studigo's service key into Mirror Finish production. The old
-\`mf_agreements\`/\`mf_bookings\` on Studigo are currently empty.
+**Still required:** Create or copy a *new project's* `sb_secret_...` credential from the Mirror Finish Supabase dashboard and set Vercel's `SUPABASE_SECRET_KEY` as a **Sensitive** Production-only environment variable. The Supabase connector cannot retrieve secret keys, only publishable keys. Do not paste private keys into GitHub or chat.
+
+The REST database helper uses `apikey: sb_secret_...` **without** an `Authorization: Bearer` header, as opaque Supabase secret keys are not JWTs. The dedicated-project URL and new key must belong to the **same project**.
 
 ## Vercel — mirror-finish-checkout
 
-After dedicated project provisioning set the following as sensitive server-only
-production environment values:
+The dedicated project is provisioned. Check/complete the following environment configuration:
 - \`SUPABASE_URL\`: the new Mirror Finish project URL
 - \`SUPABASE_SECRET_KEY\`: the **new** project's server secret (\`sb_secret_...\`)
 - \`SQUARE_ACCESS_TOKEN\`: Square seller production token (already configured)
