@@ -16,7 +16,7 @@
      SUPABASE_URL, SUPABASE_SECRET_KEY       the Mirror Finish tables (mf_agreements, mf_bookings)
      SITE_URL, ALLOWED_ORIGINS               return link and allowed callers (default: the GitHub Pages site) */
 import { AGREEMENT } from '../site/src/data/agreement.js';
-import { bookingCars, buildPaymentLink, lineTotal, OrderError, priceOrder, type CheckoutOrder } from '../site/src/lib/checkout.js';
+import { bookingCars, buildPaymentLink, lineTotal, OrderError, priceOrder, validate, type CheckoutOrder } from '../site/src/lib/checkout.js';
 import { db, dbReady, foreignOrigin, json, log, preflight, SITE_URL, UUID } from './_lib.js';
 import { BookingUnavailable, ensureSlot } from './_square-booking.js';
 
