@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       total_cents:priced.totalCents,deposit_cents:priced.depositCents,balance_cents:priced.balanceCents,
     }});
     log('appointment_request_received',{ref:reference,multi:!simple});
-    return json(200,{ref:reference,confirmed:false,charged:false},origin);
+    return json(200,{ref:reference,confirmed:false,charged:false,totalCents:priced.totalCents,depositCents:priced.depositCents,balanceCents:priced.balanceCents},origin);
   } catch(e) {
     log('appointment_request_save_failed',{error:String(e).slice(0,120)});
     return json(503,{error:'We could not save your request. Please text us instead.'},origin);
