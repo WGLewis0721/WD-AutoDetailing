@@ -39,4 +39,4 @@ for(const name of services){
 }
 
 const webhookTest=await call('/webhooks/subscriptions/'+encodeURIComponent(process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID)+'/test',{event_type:'payment.created'});
-console.log('MF_WEBHOOK_TEST API_HTTP='+webhookTest.status+' endpoint_status='+webhookTest.data.subscription_test_result?.status_code+' errors='+webhookTest.errors.join(','));
+console.log('MF_WEBHOOK_TEST API_HTTP='+webhookTest.status+' keys='+Object.keys(webhookTest.data).join(',')+' endpoint_status='+webhookTest.data.subscription_test_result?.status_code+' testKeys='+Object.keys(webhookTest.data.subscription_test_result||{}).join(',')+' errors='+webhookTest.errors.join(','));
