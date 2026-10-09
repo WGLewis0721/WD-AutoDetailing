@@ -74,6 +74,17 @@ export async function squareSlots(date: string, packageId: string): Promise<numb
     return [when.minute];
   }))].sort((a,b) => a-b);
 }
+/** Convert business-local Montgomery time to UTC, accounting for CST/CDT. */
+export function slotIso(date: string, minute: number): string {
+  const start = Date.parse(date + 'T00:00:00Z') + minute * 60000;
+  for (const hours of [5, 6]) {
+    const candidate = new Date(start + hours * 3600000);
+    const found = local(candidate.toISOString());
+    if (found.day === date && found.minute === minute) return candidate.toISOString();
+  }
+  throw new BookingUnavailable('Invalid local appointment time.', 400);
+}
+
 export async function ensureSlot(o: CheckoutOrder): Promise<void> {
   const { minutes } = supportsOnlineAppointment(o);
   const pkg = packages.find(p => p.id === o.cars[0].packageId)!;
