@@ -64,7 +64,7 @@ describe('shareable order card PNG', () => {
   });
 
   it('uses the native share sheet when it can send a PNG file', async () => {
-    const share = vi.fn(async () => {});
+    const share = vi.fn(async (_data: ShareData) => {});
     vi.stubGlobal('navigator', { canShare: () => true, share });
     const result = await shareCardBlob(new Blob(['card'], { type: 'image/png' }), cardFilename(card.ref), card.ref);
     expect(result).toBe('shared');
