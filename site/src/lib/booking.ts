@@ -497,7 +497,7 @@ async function recordAnswer(decision: 'accepted' | 'declined'): Promise<string |
   const res = await fetch(AGREEMENT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 409) throw Object.assign(new Error('stale'), { stale: true });
-  if (res.status === 503) return 'local'; // database not connected yet: checkout carries the acceptance in the Square note
+  if (res.status === 503) throw new Error('Booking storage is temporarily unavailable');
   if (!res.ok || !data.id) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data.id as string;
 }
