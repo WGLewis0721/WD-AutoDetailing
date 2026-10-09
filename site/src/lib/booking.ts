@@ -31,6 +31,7 @@ const PENDING = 'mf-pending';
    The id is kept per browser for the current agreement version only, so a text change asks again. */
 const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
 const AVAILABILITY_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'availability');
+const STATUS_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'booking-status');
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -398,6 +399,10 @@ async function payLive() {
     const res = await fetch(CHECKOUT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
     const data = await res.json().catch(() => ({}));
     if (res.status === 428) { forgetAgreement(); pay = 'idle'; render(); openGate(); return; }
+    if (res.status === 409) {
+      pay = 'idle'; s.startMin = -1; slotLost = true; s.step = 3; availability = null;
+      render(true); return;
+    }
     if (!res.ok || !data.url) throw new Error(data.error ?? `HTTP ${res.status}`);
     // Square sends the customer back to /book/?paid=REF after a successful payment; keep the build to show the pass.
     try { localStorage.setItem(PENDING, JSON.stringify({ ref: data.ref, s })); } catch { /* the pass falls back to a short note */ }
@@ -580,19 +585,36 @@ async function onGateClick(e: Event) {
   }
 }
 
-/** Back from Square with ?paid=REF: restore the build that was paid for and show its Detail Pass. */
+/** A return parameter is NOT proof of payment; only the verified webhook confirmation is. */
+async function verifySquareReturn(ref: string, hasBuild: boolean) {
+  const fallback = `<section class="thanks wrap"><p class="eyebrow">Payment verification</p><h1>We're <em>checking.</em></h1><p class="lead">Your booking reference is ${esc(ref)}. We cannot confirm an appointment yet. Please text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> if you need help.</p><a class="btn" href="${HOME}">Back to the home page</a></section>`;
+  for (let tries = 0; tries < 4; tries++) {
+    try {
+      const u = new URL(STATUS_URL); u.searchParams.set('ref', ref);
+      const res = await fetch(u.toString(), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.confirmed === true) {
+        if (hasBuild) { confirmOrder(ref); return; }
+        $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1><p class="lead">Your appointment reference is ${esc(ref)}. Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with this reference if you need to change anything.</p><a class="btn" href="${HOME}">Back to the home page</a></section>`;
+        return;
+      }
+      if (res.ok && data.state === 'unrecognized') break;
+    } catch { /* network unavailable: show uncertainty, never a fake confirmation */ }
+    if (tries < 3) await new Promise<void>(resolve => setTimeout(resolve, 1500));
+  }
+  $('app').innerHTML = fallback;
+}
+/** Back from Square: restore the customer's build but do NOT confirm without server verification. */
 function returnFromSquare(): boolean {
   const ref = params.get('paid');
   if (!ref) return false;
   let pending: { ref: string; s: State } | null = null;
   try { pending = JSON.parse(localStorage.getItem(PENDING) ?? 'null'); } catch { /* ignore */ }
   history.replaceState(null, '', location.pathname);
-  if (pending?.ref === ref && Array.isArray(pending.s?.cars)) { s = { ...fresh(), ...pending.s }; confirmOrder(ref); return true; }
-  // Paid on another device or storage was cleared: Square's receipt is the record.
-  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Deposit received</p><h1>You're <em>booked.</em></h1>
-    <p class="lead">Your reference is ${esc(ref)}. Square has emailed your receipt. Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference if you need to change anything.</p>
-    <a class="btn" href="${HOME}">Back to the home page</a></section>`;
-  try { localStorage.removeItem(PENDING); } catch { /* ignore */ }
+  const hasBuild = pending?.ref === ref && Array.isArray(pending.s?.cars);
+  if (hasBuild && pending) s = { ...fresh(), ...pending.s };
+  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Checking payment</p><h1>Confirming your <em>appointment.</em></h1><p class="lead">Your reference is ${esc(ref)}. We will only confirm once Square has verified your deposit and appointment.</p></section>`;
+  void verifySquareReturn(ref, !!hasBuild);
   return true;
 }
 
