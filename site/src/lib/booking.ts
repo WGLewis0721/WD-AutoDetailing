@@ -301,7 +301,7 @@ function panelDeposit(): string {
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
-    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
+    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>${launchMode === 'request' ? 'Deposit at checkout, after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
     <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection.</span></label>
     <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
     <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : 'Square will collect the 20% deposit securely after you continue.'}</p>`;
@@ -427,17 +427,24 @@ async function requestLive() {
     if (res.status === 428) { forgetAgreement(); pay='idle'; render(); openGate(); return; }
     if (res.status === 409) { pay='idle'; s.startMin=-1; s.step=3; availability=null; slotLost=true; render(true); return; }
     if (!res.ok || !/^MF-[A-Z0-9]{8}$/.test(data.ref)) throw new Error(data.error || 'Request unavailable');
+    // The backend re-prices every vehicle. Always show the recorded amounts,
+    // rather than trusting a quote that could have changed since the review.
+    const { totalCents, depositCents, balanceCents } = data;
+    if (![totalCents, depositCents, balanceCents].every((v) => Number.isSafeInteger(v) && v >= 0) ||
+        totalCents !== depositCents + balanceCents || depositCents === 0) {
+      throw new Error('Invalid server-side price');
+    }
     pay = 'idle';
     const when = esc(whenLabel());
     const details = s.cars.map((c,i) => `Car ${i+1}: ${carLabel(c)} — ${packages.find(p => p.id===c.packageId)?.name || ''}${c.extraIds.length ? ' + add-ons' : ''}`).join('; ');
-    const smsBody = encodeURIComponent(`Mirror Finish request ${data.ref}. ${s.name.trim()}, ${details}. Preferred ${when}, ${address()}. Please confirm availability and deposit instructions.`);
+    const smsBody = encodeURIComponent(`Mirror Finish request ${data.ref}. ${s.name.trim()}, ${details}. Preferred ${when}, ${address()}. Total price: ${fmt(totalCents)}. Deposit at checkout after appointment confirmation (20%): ${fmt(depositCents)}. Outstanding balance due after detailing: ${fmt(balanceCents)}. No payment collected yet. Please confirm availability and payment instructions.`);
     const smsLink = SITE.phoneSms + '?body=' + smsBody;
     $('app').innerHTML = `<section class="thanks wrap" role="status">
       <p class="eyebrow">Request received · ${esc(data.ref)}</p>
       <h1>We'll confirm your <em>appointment.</em></h1>
       <p class="lead">Your vehicle, selected services and preferred time have been saved. This is a request, not a confirmed booking.</p>
-      <div class="card box"><p><b>Preferred time:</b> ${when}</p><p><b>Reference:</b> ${esc(data.ref)}</p><p><b>Charged today:</b> $0.00</p></div>
-      <p class="note">To complete scheduling, send your reference by text. We'll verify your appointment and arrange the deposit before confirming.</p>
+      <div class="card box"><p><b>Preferred time:</b> ${when}</p><p><b>Reference:</b> ${esc(data.ref)}</p><p><b>Total price:</b> ${fmt(totalCents)}</p><p><b>Deposit at checkout, after confirmation (20%):</b> ${fmt(depositCents)}</p><p><b>Outstanding balance after detailing:</b> ${fmt(balanceCents)}</p><p><b>Charged today:</b> $0.00</p></div>
+      <p class="note">To complete scheduling, send your reference and the prices by text. We'll verify your appointment and arrange the deposit before confirming.</p>
       <a class="btn btn--lg" href="${smsLink}">Text us to confirm your request</a>
       <p><a class="link" href="${HOME}">Back to the home page</a></p></section>`;
     try { localStorage.removeItem(KEY); } catch {}
