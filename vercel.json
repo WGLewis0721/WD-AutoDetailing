@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'no install: the function only uses built-ins'",
-  "buildCommand": "node scripts/one-time-square-booking-test.mjs",
+  "buildCommand": "echo 'no build: the website is on GitHub Pages'",
   "outputDirectory": "checkout-public",
   "functions": { "api/create-checkout.ts": { "maxDuration": 15 } }
 }
