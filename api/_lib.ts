@@ -5,7 +5,7 @@ export const ORIGINS = (process.env.ALLOWED_ORIGINS || new URL(SITE_URL).origin)
 
 export const cors = (origin: string | null): Record<string, string> => ({
   'Access-Control-Allow-Origin': origin && ORIGINS.includes(origin) ? origin : ORIGINS[0],
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
   Vary: 'Origin',
@@ -19,8 +19,8 @@ export const log = (event: string, detail: Record<string, unknown> = {}) => cons
 /** Who sent the request, as Vercel's edge saw it (the browser cannot set these). */
 export const clientIp = (req: Request) => (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || req.headers.get('x-real-ip') || null;
 
-/* Supabase (Studigo project, tables prefixed mf_). Server-only secret key: the tables have RLS on and no policies,
-   so the public keys cannot touch them. SUPABASE_URL and SUPABASE_SECRET_KEY are set in the Vercel project. */
+/* Mirror Finish's dedicated Supabase project is required before paid online bookings are enabled.
+   Server-only key: tables have RLS and no browser-access policies. Never expose this credential to clients. */
 export const dbReady = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
 
 export async function db<T = unknown>(path: string, init: { method?: string; body?: unknown; prefer?: string } = {}): Promise<T> {
