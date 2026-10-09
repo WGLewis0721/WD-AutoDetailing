@@ -28,7 +28,7 @@ console.log('MF_WEBHOOK HTTP='+w.status+' subscription='+!!sub+' liveKeyPresent=
 if(sub?.id){const detail=await call('/webhooks/subscriptions/'+encodeURIComponent(process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID||sub.id));console.log('MF_WEBHOOK_DETAIL HTTP='+detail.status+' activeKeyPresent='+Boolean(detail.data.subscription?.signature_key)+' matchesVercelKey='+(Boolean(detail.data.subscription?.signature_key)&&detail.data.subscription.signature_key===process.env.SQUARE_WEBHOOK_SIGNATURE_KEY)+' errors='+detail.errors.join(','));}
 const loc=process.env.SQUARE_LOCATION_ID,team=process.env.SQUARE_APPOINTMENT_TEAM_MEMBER_ID;
 const locProfile=await call('/bookings/location-booking-profiles/'+loc);
-console.log('MF_LOCATION_PROFILE HTTP='+locProfile.status+' onlineBookingEnabled='+locProfile.data.location_booking_profile?.online_booking_enabled+' errors='+locProfile.errors.join(','));
+console.log('MF_LOCATION_PROFILE HTTP='+locProfile.status+' onlineBookingEnabled='+locProfile.data.location_booking_profile?.online_booking_enabled+' bookingSiteUrl='+locProfile.data.location_booking_profile?.booking_site_url+' errors='+locProfile.errors.join(','));
 const actualLocation=await call('/locations/'+loc);
 console.log('MF_LOCATION HTTP='+actualLocation.status+' status='+actualLocation.data.location?.status+' timezone='+actualLocation.data.location?.timezone+' errors='+actualLocation.errors.join(','));
 for(const name of services){
@@ -38,5 +38,3 @@ for(const name of services){
  console.log('MF_AVAIL '+name+' HTTP='+result.status+' slots='+slots.length+' durationMatches='+durationCorrect+' first='+(slots[0]?.start_at||'none')+' errors='+result.errors.join(','));
 }
 
-const webhookTest=await call('/webhooks/subscriptions/'+encodeURIComponent(process.env.SQUARE_WEBHOOK_SUBSCRIPTION_ID)+'/test',{event_type:'payment.created'});
-console.log('MF_WEBHOOK_TEST API_HTTP='+webhookTest.status+' endpoint_status='+webhookTest.data.status_code+' passes_filter='+webhookTest.data.passes_filter+' errors='+webhookTest.errors.join(','));
