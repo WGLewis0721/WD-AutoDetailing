@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     return json(409, { error: 'The agreement has been updated. Please review it again.', version: AGREEMENT.version }, origin);
   }
 
+  try {
   const [row] = await db<{ id: string }[]>('mf_agreements', {
     method: 'POST', prefer: 'return=representation',
     body: {
@@ -38,4 +39,8 @@ export async function POST(req: Request) {
   });
   log('agreement_recorded', { id: row.id, decision });
   return json(200, { id: row.id }, origin);
+  } catch (error) {
+    log('agreement_storage_error', { message: String(error).slice(0, 150) });
+    return json(503, { error: 'We cannot record agreements right now. Please book by phone.' }, origin);
+  }
 }
