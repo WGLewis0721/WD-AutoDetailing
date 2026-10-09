@@ -2,14 +2,19 @@
 
 ## State as of October 9, 2026
 
-Implementation branch: \`fix/customer-booking-readiness-20261009\`.
+**Online deposits remain locked** until a controlled successful post-payment Square Appointments test. Production requires the explicit `SQUARE_BOOKING_LAUNCH_APPROVED=true` environment switch, which has NOT been set; SMS scheduling remains available.
 
-**Do not enable customer deposit checkout yet.** Square deposits were previously
-possible without a stored agreement or real appointment availability. The new
-backend code fails closed until the dependencies below are configured. The
-old publicly deployed checkout remains on the previous main branch until a
-verified deployment replaces it.
+**Completed:** The owner-supplied Square webhook signature key and URL were saved in Vercel Production. A one-time production Square API job verified the seller, team, prices, and service variations, then updated Square Appointments service durations. The job re-read all three and confirmed:
 
+| Service | New duration | Verified Square variation version |
+|---|---:|---|
+| Deluxe | 120 minutes | `1791557314880` |
+| Exterior | 60 minutes | `1791557315543` |
+| Interior | 60 minutes | `1791557316076` |
+
+These new versions are already reflected in the Vercel Production environment. The job also returned `MF_WEBHOOK_SUBSCRIPTION_OK`: enabled subscription, matching notification URL and signature key, and both `payment.created` and `payment.updated` events. The one-time maintenance script has been removed and its execution flag disabled.
+
+**Before enabling paid appointments:** Verify seller-level Square Appointments privileges, perform a no-charge availability probe, and exercise a controlled deposit-to-appointment smoke test (sandbox preferred). Confirm webhook signature and duplicate-delivery idempotency. Only then set `SQUARE_BOOKING_LAUNCH_APPROVED=true` and redeploy.
 ## Dedicated Supabase project — provisioned October 9, 2026
 
 - Project: **Mirror Finish** (`potuicptomrjmtarlrpt`, `us-east-1`).
@@ -22,7 +27,7 @@ verified deployment replaces it.
 - Legacy same-named tables in Studigo contained zero rows when checked on October 9; no customer rows needed copying.
 - The existing Vercel `SUPABASE_URL` environment variable now points at Mirror Finish for Production and Preview.
 
-**Still required:** Create or copy a *new project's* `sb_secret_...` credential from the Mirror Finish Supabase dashboard and set Vercel's `SUPABASE_SECRET_KEY` as a **Sensitive** Production-only environment variable. The Supabase connector cannot retrieve secret keys, only publishable keys. Do not paste private keys into GitHub or chat.
+**Completed:** The dedicated Mirror Finish project's `SUPABASE_SECRET_KEY` is configured in Vercel as a Sensitive Production-only key, and live database reads have been verified.
 
 The REST database helper uses `apikey: sb_secret_...` **without** an `Authorization: Bearer` header, as opaque Supabase secret keys are not JWTs. The dedicated-project URL and new key must belong to the **same project**.
 
