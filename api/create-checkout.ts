@@ -18,6 +18,7 @@
 import { AGREEMENT } from '../site/src/data/agreement.js';
 import { bookingCars, buildPaymentLink, lineTotal, OrderError, priceOrder, type CheckoutOrder } from '../site/src/lib/checkout.js';
 import { db, dbReady, foreignOrigin, json, log, preflight, SITE_URL, UUID } from './_lib.js';
+import { BookingUnavailable, ensureSlot } from './_square-booking.js';
 
 const SQUARE_API = process.env.SQUARE_ENV === 'production' ? 'https://connect.squareup.com' : 'https://connect.squareupsandbox.com';
 const SQUARE_VERSION = '2025-01-23';
@@ -58,6 +59,18 @@ export async function POST(req: Request) {
     return json(428, { error: 'Please review and accept the Service Agreement first.', agreement: true }, origin);
   }
   const agreementNote = `v${AGREEMENT.version} ${aid.slice(0, 8)}`;
+
+  // Never take a deposit against simulated availability. Square is the scheduling authority.
+  try {
+    await ensureSlot(order);
+  } catch (error) {
+    if (error instanceof BookingUnavailable) {
+      log('appointment_not_available', { reason: error.message });
+      return json(error.status, { error: error.message }, origin);
+    }
+    log('availability_check_error', { message: String(error).slice(0, 100) });
+    return json(503, { error: 'Appointment times cannot be verified. Please book by text.' }, origin);
+  }
 
   const ref = newRef();
   let body;
