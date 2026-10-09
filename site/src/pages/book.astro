@@ -10,7 +10,7 @@ const home = (Astro.site?.href ?? '').replace(/\/?$/, '/');
 const live = !!(import.meta.env.PUBLIC_CHECKOUT_URL ?? '').trim();
 const crumbs = { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Home', item: home }, { '@type': 'ListItem', position: 2, name: 'Book a detail', item: home + 'book/' }] };
 ---
-<Base title="Book Mobile Detailing in Montgomery, AL | Mirror Finish MGM" description="Pick your vehicle, build your detail and see your price instantly. Book mobile car detailing in Montgomery, AL and the River Region with a 20% deposit." schema={[crumbs]}>
+<Base title="Book Mobile Detailing in Montgomery, AL | Mirror Finish MGM" description="Book an appointment for mobile car detailing in Montgomery, Alabama and the River Region. View actual Square Appointments availability and choose a convenient time." schema={[crumbs]}>
   <Header minimal />
   {!live && <div class="demo" role="note">PREVIEW — sample availability, no payment is taken</div>}
   <main id="main" class="book wrap">

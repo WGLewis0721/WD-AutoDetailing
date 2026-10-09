@@ -630,13 +630,16 @@ async function startWithReadinessCheck() {
     const res = await fetch(HEALTH_URL, { cache: 'no-store' });
     if (res.ok) { startBooking(); return; }
   } catch { /* offline or API unavailable: manual bookings remain possible */ }
-  // Never ask customers to agree, choose a fake time, and then fail at payment.
+  // The Square-hosted booking calendar is already configured with genuine
+  // appointments and available slots. Use it instead of an unverified custom
+  // charge-before-appointment flow until Square payment-to-booking is proven.
   $('app').innerHTML = `<section class="thanks wrap" role="status">
-    <p class="eyebrow">Book by text</p><h1>Let's schedule your <em>detail.</em></h1>
-    <p class="lead">Online appointment scheduling is temporarily unavailable. We can confirm an available time directly and answer any questions about your vehicle.</p>
-    <a class="btn btn--lg" href="${SITE.phoneSms}">Text ${SITE.phoneDisplay} to book</a>
-    <p class="muted">No online deposit will be taken while scheduling is unavailable.</p>
-    <a class="link" href="${HOME}">View packages and services</a></section>`;
+    <p class="eyebrow">Book online</p><h1>Let's schedule your <em>detail.</em></h1>
+    <p class="lead">Choose your service and a real available time with Square Appointments. Square will handle your booking confirmation.</p>
+    <a class="btn btn--lg" href="${SITE.bookingUrl}">See available times</a>
+    <p class="muted">Prefer a custom quote or need help with more than one vehicle?</p>
+    <a class="link" href="${SITE.phoneSms}">Text ${SITE.phoneDisplay} to schedule</a>
+    <p><a class="link" href="${HOME}">View packages and services</a></p></section>`;
 }
 export function initBooking() {
   if (returnFromSquare()) return;

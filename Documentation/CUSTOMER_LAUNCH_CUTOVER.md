@@ -2,6 +2,16 @@
 
 ## State as of October 9, 2026
 
+**Customer booking launch:** The public `/book/` page routes customers to Square's own enabled, official, bookable appointment calendar:
+`https://square.site/book/LJEJ2Y0KH577X/mirror-finish-mobile-detailing`.
+Square confirms bookings and handles its own checkout rules. The text/SMS option remains available for custom quotes, multi-car bookings and questions. The old quote builder code remains but is not presented during the guarded custom-checkout state.
+
+**Verified production:** Square's location booking profile reports online booking enabled and provided the URL above. Square live Bookings API returned 510 Deluxe and 570 Exterior/Interior appointment slots across the checked 30-day range. Staff and all three catalog variations are bookable, with matching 120/60/60-minute durations. Square's subscription detail returned the active HMAC signing key and the Square synthetic signed payment webhook returned HTTP 200 with passes_filter=true. These probes created no real bookings or payments.
+
+**Custom deposit flow remains intentionally locked:** `SQUARE_BOOKING_LAUNCH_APPROVED` is unset. No one can be charged through the custom checkout until the deposit-to-Square-appointment completion path has been verified end-to-end. Do not conflate the live Square-hosted calendar with completion of the custom workflow.
+
+
+
 **Online deposits remain locked** until a controlled successful post-payment Square Appointments test. Production requires the explicit `SQUARE_BOOKING_LAUNCH_APPROVED=true` environment switch, which has NOT been set; SMS scheduling remains available.
 
 **Completed:** The owner-supplied Square webhook signature key and URL were saved in Vercel Production. A one-time production Square API job verified the seller, team, prices, and service variations, then updated Square Appointments service durations. The job re-read all three and confirmed:

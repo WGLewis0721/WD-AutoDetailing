@@ -22,7 +22,7 @@ jobs:
     env:
       SITE_URL: https://wglewis0721.github.io/WD-AutoDetailing
       # The Vercel checkout function (api/create-checkout.ts, project mirror-finish-checkout). This makes the
-      # booking page take real deposits through Square. A repo variable CHECKOUT_URL overrides it; to switch the
+      # booking page use the Vercel API if customer deposit cutover has been separately verified. A repo variable CHECKOUT_URL overrides it; to switch the
       # site back to preview mode (no payment), set that variable to a single space.
       PUBLIC_CHECKOUT_URL: ${{ vars.CHECKOUT_URL || 'https://mirror-finish-checkout-gray-matter5.vercel.app/api/create-checkout' }}
     steps:
@@ -39,7 +39,7 @@ jobs:
       - name: Book buttons and contact links
         run: |
           test "$(grep -o 'href="/book' dist/index.html | wc -l)" -ge 5
-          grep -q 'mirror-finish-mobile-detailing.square.site' dist/index.html
+          grep -q 'square.site/book/LJEJ2Y0KH577X/mirror-finish-mobile-detailing' dist/index.html
           grep -q 'tel:+13346522601' dist/index.html
           ! grep -qi 'localhost' dist/index.html
       - name: Make a copy that works from any URL path
