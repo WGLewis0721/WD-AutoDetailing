@@ -10,15 +10,27 @@ type StoredBooking = {
   deposit_cents: number; cars: { packageId: string; extraIds: string[] }[];
 };
 const reply = (status: number) => new Response(status === 200 ? 'ok' : 'unavailable', { status });
+/** Obtain the ACTIVE Square subscription key on the server for each webhook.
+ * This survives Square key rotation, and never trusts an exposed/stale local key. */
 async function verify(raw: string, signature: string) {
-  const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
   const url = process.env.SQUARE_WEBHOOK_URL;
-  if (!key || !url || !signature) return false;
-  const cryptoKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(key),
+  if (!url || !signature) return false;
+  const response = await fetch(SQUARE_API + '/v2/webhooks/subscriptions', {
+    headers: { Authorization: 'Bearer ' + process.env.SQUARE_ACCESS_TOKEN,
+      'Square-Version': SQUARE_VERSION, 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) throw new Error('Unable to retrieve Square webhook subscription');
+  const data = await response.json();
+  const subscription = (Array.isArray(data.subscriptions) ? data.subscriptions : []).find(
+    (s: { enabled?: boolean; notification_url?: string; signature_key?: string; event_types?: string[] }) =>
+      s.enabled && s.notification_url === url &&
+      s.event_types?.includes('payment.created') && s.event_types?.includes('payment.updated'));
+  if (!subscription?.signature_key) throw new Error('No valid active Square webhook subscription key');
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(subscription.signature_key),
     { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
   try {
     const digest = Uint8Array.from(atob(signature), (ch) => ch.charCodeAt(0));
-    return await crypto.subtle.verify('HMAC', cryptoKey, digest, new TextEncoder().encode(url + raw));
+    return await crypto.subtle.verify('HMAC', key, digest, new TextEncoder().encode(url + raw));
   } catch { return false; }
 }
 async function square(path: string, body: unknown) {
@@ -64,10 +76,15 @@ async function appointment(row: StoredBooking, paymentCustomerId?: string) {
   return { bookingId: b.booking.id as string, customerId };
 }
 export async function POST(req: Request) {
-  if (!dbReady() || !process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ||
-      !process.env.SQUARE_WEBHOOK_URL) return reply(503);
+  if (!dbReady() || !process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_WEBHOOK_URL) return reply(503);
   const raw = await req.text();
-  if (!await verify(raw, req.headers.get('x-square-hmacsha256-signature') || '')) return reply(403);
+  let valid = false;
+  try { valid = await verify(raw, req.headers.get('x-square-hmacsha256-signature') || ''); }
+  catch {
+    log('square_webhook_verification_unavailable');
+    return reply(503); // Fail closed; Square should retry a temporarily unavailable verifier.
+  }
+  if (!valid) return reply(403);
   let event: Record<string, any>;
   try { event = JSON.parse(raw); } catch { return reply(400); }
   if (!['payment.created','payment.updated'].includes(event.type)) return reply(200);

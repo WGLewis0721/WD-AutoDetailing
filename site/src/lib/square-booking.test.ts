@@ -5,7 +5,7 @@ const env = {
   SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_example',
   SQUARE_APPOINTMENT_TEAM_MEMBER_ID: 'TM1', SQUARE_APPOINTMENT_DELUXE_VARIATION_ID: 'SERVICE1',
   SQUARE_APPOINTMENT_DELUXE_VERSION: '1234567',
-  SQUARE_WEBHOOK_SIGNATURE_KEY: 'test-signature-key',
+  SQUARE_WEBHOOK_SIGNATURE_KEY: 'stale-key-from-before-rotation',
   SQUARE_WEBHOOK_URL: 'https://checkout.example/api/square-webhook',
 };
 beforeEach(() => {
@@ -54,7 +54,9 @@ describe('Square payment webhook', () => {
       amount_money: { currency:'USD', amount:4000 },
     } } },
   });
-  const req = async (raw: string, signatureKey = env.SQUARE_WEBHOOK_SIGNATURE_KEY) => {
+  const activeKey = 'the-square-current-rotated-key';
+  const signedSubscriptions = () => new Response(JSON.stringify({ subscriptions: [{ enabled: true, notification_url: env.SQUARE_WEBHOOK_URL, signature_key: activeKey, event_types: ['payment.created', 'payment.updated'] }] }), { status: 200 });
+  const req = async (raw: string, signatureKey = activeKey) => {
     const secret = await crypto.subtle.importKey('raw', new TextEncoder().encode(signatureKey),
       { name:'HMAC', hash:'SHA-256' },false,['sign']);
     const sig = await crypto.subtle.sign('HMAC',secret,new TextEncoder().encode(env.SQUARE_WEBHOOK_URL+raw));
@@ -64,16 +66,28 @@ describe('Square payment webhook', () => {
     });
   };
   it('rejects an event signed by a different key before changing records',async () => {
-    const fetchMock=vi.fn();
+    const fetchMock=vi.fn(async(url: string) => {
+      if(url.endsWith('/v2/webhooks/subscriptions')) return signedSubscriptions();
+      throw Error('Untrusted notification must not access private bookings: '+url);
+    });
     vi.stubGlobal('fetch',fetchMock);
     const { POST } = await import('../../../api/square-webhook.ts');
     expect((await POST(await req(event,'imposter'))).status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1); // Only Square subscription; no DB or booking side effect.
+  });
+  it('rejects the previous key after Square rotates its signature', async () => {
+    vi.stubGlobal('fetch',vi.fn(async(url: string) => {
+      if(url.endsWith('/v2/webhooks/subscriptions')) return signedSubscriptions();
+      throw Error('Rejected signature reached private backend');
+    }));
+    const { POST } = await import('../../../api/square-webhook.ts');
+    expect((await POST(await req(event, env.SQUARE_WEBHOOK_SIGNATURE_KEY))).status).toBe(403);
   });
   it('creates one idempotent Square appointment only after a verified completed deposit',async () => {
     const calls: {url:string;init:RequestInit}[]=[];
     vi.stubGlobal('fetch',vi.fn(async(url:string,init:RequestInit={})=>{
       calls.push({url,init});
+      if(url.endsWith('/v2/webhooks/subscriptions')) return signedSubscriptions();
       if(url.includes('?square_order_id=eq.O1')) return new Response(JSON.stringify([row]),{status:200});
       if(url.endsWith('/v2/customers')) return new Response(JSON.stringify({customer:{id:'C1'}}),{status:200});
       if(url.endsWith('/v2/bookings')) return new Response(JSON.stringify({booking:{id:'B1'}}),{status:200});
