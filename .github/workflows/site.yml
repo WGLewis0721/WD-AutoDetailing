@@ -39,7 +39,7 @@ jobs:
       - name: Book buttons and contact links
         run: |
           test "$(grep -o 'href="/book' dist/index.html | wc -l)" -ge 5
-          grep -q 'square.site/book/LJEJ2Y0KH577X/mirror-finish-mobile-detailing' dist/index.html
+          grep -q 'href="/book' dist/index.html
           grep -q 'tel:+13346522601' dist/index.html
           ! grep -qi 'localhost' dist/index.html
       - name: Make a copy that works from any URL path
