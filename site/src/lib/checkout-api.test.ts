@@ -12,7 +12,7 @@ const order = {
 const post = (body: unknown, origin = ORIGIN, headers: Record<string, string> = {}) =>
   new Request('https://checkout.example/api/x', { method: 'POST', headers: { origin, 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
 
-const ENV = { SQUARE_ACCESS_TOKEN: 'tok', SQUARE_LOCATION_ID: 'LOC', SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_x',
+const ENV = { SQUARE_BOOKING_LAUNCH_APPROVED: 'true', SQUARE_ACCESS_TOKEN: 'tok', SQUARE_LOCATION_ID: 'LOC', SUPABASE_URL: 'https://db.example', SUPABASE_SECRET_KEY: 'sb_secret_x',
   SQUARE_APPOINTMENT_DELUXE_VARIATION_ID: 'VAR', SQUARE_APPOINTMENT_DELUXE_VERSION: '42',
   SQUARE_APPOINTMENT_TEAM_MEMBER_ID: 'TEAM' };
 
@@ -56,6 +56,14 @@ describe('checkout function', () => {
     backend();
     const { POST } = await load('create-checkout');
     expect((await POST(post(order, 'https://evil.example'))).status).toBe(403);
+  });
+
+  it('blocks live deposits until cutover is explicitly approved', async () => {
+    const { calls } = backend();
+    const { POST } = await load('create-checkout', { ...ENV, SQUARE_BOOKING_LAUNCH_APPROVED: '' });
+    const r = await POST(post(order));
+    expect(r.status).toBe(503);
+    expect(calls).toHaveLength(0);
   });
 
   it('says so plainly when Square is not configured', async () => {
