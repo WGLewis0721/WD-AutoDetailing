@@ -30,6 +30,7 @@ const PENDING = 'mf-pending';
    /api/agreement (server adds IP and user agent), and checkout refuses to start without an accepted agreement id.
    The id is kept per browser for the current agreement version only, so a text change asks again. */
 const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
+const AVAILABILITY_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'availability');
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -96,6 +97,36 @@ let errors: Record<string, string> = {};
 let lastTotal = 0;
 let lastDeposit = 0;
 let pay: Pay = 'idle';
+let availability: { date: string; pkg: string; starts: number[]; loading: boolean; error: string } | null = null;
+async function loadAvailability() {
+  if (!LIVE || s.step !== 3 || !s.date || s.cars.length !== 1 || !s.cars[0].packageId) return;
+  const date = s.date, pkg = s.cars[0].packageId;
+  if (availability?.date === date && availability.pkg === pkg) return;
+  availability = { date, pkg, starts: [], loading: true, error: '' };
+  render();
+  try {
+    const url = new URL(AVAILABILITY_URL);
+    url.searchParams.set('date', date);
+    url.searchParams.set('package', pkg);
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (availability?.date !== date || availability.pkg !== pkg) return;
+    availability = { date, pkg, starts: res.ok && Array.isArray(data.starts) ? data.starts : [], loading: false,
+      error: res.ok ? '' : String(data.error || 'Live availability is not available right now.') };
+    if (s.startMin >= 0 && !availability.starts.includes(s.startMin)) s.startMin = -1;
+    render();
+  } catch {
+    if (availability?.date !== date || availability.pkg !== pkg) return;
+    availability = { date, pkg, starts: [], loading: false, error: 'Cannot connect to live availability. Please text us to book.' };
+    render();
+  }
+}
+function verifiedSlot() {
+  return !LIVE || !!(availability && !availability.loading && !availability.error &&
+    availability.date === s.date && availability.pkg === s.cars[0]?.packageId &&
+    s.cars.length === 1 && s.cars[0].extraIds.length === 0 &&
+    availability.starts.includes(s.startMin));
+}
 let slotLost = false;
 let demoUsed = false;
 const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -104,7 +135,7 @@ function valid(step: number): boolean {
   errors = {};
   if (step === 1) return inArea() && s.cars.every((c) => c.shape && c.size);
   if (step === 2) return s.cars.every((c) => c.packageId);
-  if (step === 3) return !!s.date && s.startMin >= 0;
+  if (step === 3) return !!s.date && s.startMin >= 0 && verifiedSlot();
   if (step === 4) {
     if (s.name.trim().length < 2) errors.name = 'Enter your name';
     if (s.phone.replace(/\D/g, '').length < 10) errors.phone = 'Enter a 10-digit mobile number';
@@ -201,20 +232,34 @@ function panelWhen(): string {
   const quick = nextAvailable(total).map((v) => `<button type="button" class="chipbtn ${s.date === v ? 'on' : ''}" data-date="${v}">${new Date(v + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</button>`).join('');
   let slotsHtml = '<p class="muted hint">Choose a day to see start times.</p>';
   if (s.date) {
-    const all = slotsFor(s.date, total);
+    const all = slotsFor(s.date, total).map(slot => ({ ...slot, taken: LIVE &&
+      !(availability?.date === s.date && availability?.pkg === s.cars[0]?.packageId &&
+        !availability.loading && !availability.error && availability.starts.includes(slot.startMin)) }));
+    if (LIVE && s.cars.length !== 1) slotsHtml = '<p class="note">Multiple vehicles need manual scheduling. Please text us to book.</p>';
     const grp = (name: string, list: typeof all) => list.length ? `<div class="grp"><b>${name}</b><div class="slots">${list.map((x) => `<button type="button" class="slot ${s.startMin === x.startMin ? 'on' : ''}" data-start="${x.startMin}" ${x.taken ? 'disabled' : ''}>${x.label}${x.taken ? '<small>Booked</small>' : ''}</button>`).join('')}</div></div>` : '';
-    slotsHtml = grp('Morning', all.filter((x) => x.startMin < 720)) + grp('Afternoon', all.filter((x) => x.startMin >= 720));
+    if (LIVE && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) {
+      slotsHtml = '<p class="note">Multi-car or add-on bookings need manual scheduling. Please text us to arrange your time.</p>';
+    } else if (LIVE && availability?.loading) {
+      slotsHtml = '<p class="muted hint" role="status">Checking Square for available appointments…</p>';
+    } else if (LIVE && availability?.error) {
+      slotsHtml = '<p class="errsum" role="alert">' + esc(availability.error) + ' ' + textUs('Text us') + '.</p>';
+    } else if (LIVE && !availability) {
+      slotsHtml = '<p class="muted hint">Checking live appointment times…</p>';
+    } else {
+      slotsHtml = grp('Morning', all.filter((x) => x.startMin < 720)) + grp('Afternoon', all.filter((x) => x.startMin >= 720));
+      if (LIVE && !availability?.starts.length) slotsHtml = '<p class="muted hint">No appointments available for this service on this date.</p>';
+    }
   }
   const cars = s.cars.length;
   const lost = slotLost ? `<div class="errsum" role="alert"><b>That time was just booked.</b> Your build is saved. Pick another start time below.</div>` : '';
   return `<h2 tabindex="-1">Pick a <em>day and time</em></h2>${lost}
     <p class="muted">${cars > 1 ? `${cars} cars, one detailer, back to back: about ${hours(total)}.` : `Estimated time for your build: about ${hours(total)}.`} We come to you. Start times shown fit your whole order.</p>
-    ${quick ? `<div class="quickdays"><span>Soonest:</span>${quick}</div>` : `<p class="note">This order is too long for one day. ${textUs('Text us')} and we will arrange it.</p>`}
+    ${quick ? `<div class="quickdays"><span>Dates to check:</span>${quick}</div>` : `<p class="note">This order is too long for one day. ${textUs('Text us')} and we will arrange it.</p>`}
     <div class="cal card"><div class="calhead"><button type="button" class="ghostbtn" data-month="-1" ${prevOk ? '' : 'disabled'} aria-label="Previous month">&lsaquo;</button><b>${title}</b><button type="button" class="ghostbtn" data-month="1" ${nextOk ? '' : 'disabled'} aria-label="Next month">&rsaquo;</button></div>
     <div class="calgrid">${monthDays(m, total)}</div>
     <ul class="legend"><li><i class="k open"></i>Open</li><li><i class="k full"></i>Fully booked</li><li><i class="k closed"></i>Closed</li></ul></div>
     ${s.date ? `<h3 class="sub">${new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>` : ''}${slotsHtml}
-    <p class="note">Preview: availability shown is sample data until booking goes live.</p>`;
+    ${LIVE ? `<p class="note">Available times come from Square Appointments and are verified again before checkout.</p>` : `<p class="note">Preview mode. Times are not confirmed.</p>`}`;
 }
 
 const describe = (id: string) => (errors[id] ? `aria-invalid="true" aria-describedby="e-${id}"` : '');
@@ -316,6 +361,7 @@ function render(focus = false) {
   $('vtag').innerHTML = sz ? `<b>${sz.name}</b><span>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</span>` : '<span>Pick a vehicle to see its size</span>';
   $('vcar').textContent = s.cars.length > 1 ? `Car ${s.active + 1} of ${s.cars.length}` : '';
   save();
+  if (s.step === 3 && LIVE && s.date) void loadAvailability();
 }
 
 /* ---------- actions ---------- */
@@ -421,8 +467,8 @@ function bind() {
     else if (d.remove) { const i = Number(d.remove); s.cars.splice(i, 1); s.active = Math.min(s.active, s.cars.length - 1); s.date = ''; s.startMin = -1; render(); }
     else if (d.addcar !== undefined) { if (s.cars.length < MAX_CARS) { s.cars.push(newCar()); s.active = s.cars.length - 1; s.date = ''; s.startMin = -1; s.step = 1; render(true); } }
     else if (d.copy !== undefined) { const f = s.cars[0]; c.packageId = f.packageId; c.extraIds = [...f.extraIds]; render(); }
-    else if (d.pkg) { c.packageId = d.pkg; render(); }
-    else if (d.extra) { c.extraIds = c.extraIds.includes(d.extra) ? c.extraIds.filter((x) => x !== d.extra) : [...c.extraIds, d.extra]; render(); }
+    else if (d.pkg) { c.packageId = d.pkg; s.date = ''; s.startMin = -1; availability = null; render(); }
+    else if (d.extra) { c.extraIds = c.extraIds.includes(d.extra) ? c.extraIds.filter((x) => x !== d.extra) : [...c.extraIds, d.extra]; s.date = ''; s.startMin = -1; availability = null; render(); }
     else if (d.style) { const b = bodyStyles.find((x) => x.id === d.style)!; c.manualStyle = b.id; c.shape = b.shape; c.size = b.size; c.mesh = b.model; render(); }
     else if (d.date) { s.date = d.date; s.startMin = -1; slotLost = false; render(); }
     else if (d.start) { s.startMin = Number(d.start); slotLost = false; render(); }
