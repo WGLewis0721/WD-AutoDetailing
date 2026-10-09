@@ -34,26 +34,30 @@ export async function POST(req: Request) {
     log('checkout_not_configured');
     return json(503, { error: 'Online payment is not set up yet' }, origin);
   }
-  /* Until SUPABASE_SECRET_KEY is set, the page still shows the agreement but cannot record it; the acceptance
-     (version and time) then rides in the Square payment note and the booking is not saved. Once the key is set,
-     the rules below apply automatically. */
-  const recording = dbReady();
+  if (!dbReady()) {
+    log('checkout_db_required');
+    return json(503, { error: 'Online booking is temporarily unavailable. Please text us to schedule.' }, origin);
+  }
 
   let order: CheckoutOrder;
   try { order = await req.json(); } catch { return json(400, { error: 'Invalid JSON' }, origin); }
 
   // The Service Agreement gate: no accepted agreement for the current version, no checkout.
   const aid = String(order.agreementId ?? '');
-  if (recording) {
-    const agreed = UUID.test(aid)
+  let agreed: { id: string }[];
+  try {
+    agreed = UUID.test(aid)
       ? await db<{ id: string }[]>(`mf_agreements?id=eq.${aid}&decision=eq.accepted&version=eq.${encodeURIComponent(AGREEMENT.version)}&select=id`)
       : [];
-    if (!agreed.length) { log('agreement_missing', { has_id: !!aid }); return json(428, { error: 'Please review and accept the Service Agreement first.', agreement: true }, origin); }
-  } else if (aid !== 'local') {
+  } catch (error) {
+    log('agreement_lookup_failed', { message: String(error).slice(0, 150) });
+    return json(503, { error: 'Agreement verification is unavailable. Please try later.' }, origin);
+  }
+  if (!agreed.length) {
+    log('agreement_missing', { has_id: !!aid });
     return json(428, { error: 'Please review and accept the Service Agreement first.', agreement: true }, origin);
   }
-  const agreedAt = String(order.agreedAt ?? '').slice(0, 30);
-  const agreementNote = recording ? `v${AGREEMENT.version} ${aid.slice(0, 8)}` : `v${AGREEMENT.version} at ${agreedAt} (not recorded: database not connected)`;
+  const agreementNote = `v${AGREEMENT.version} ${aid.slice(0, 8)}`;
 
   const ref = newRef();
   let body;
@@ -78,10 +82,8 @@ export async function POST(req: Request) {
   }
   log('payment_link_created', { ref, order_id: data.payment_link.order_id });
 
-  // Save the build. A database hiccup must not strand a customer who is ready to pay: the Square order already
-  // carries the reference, the build and the agreement id, so log loudly and still send them to checkout.
+  // Save the booking before exposing a payable link. Fail closed if storage is unavailable.
   const q = priceOrder(order);
-  if (!recording) { log('booking_not_saved_no_db', { ref }); return json(200, { url: data.payment_link.url, ref }, origin); }
   try {
     await db('mf_bookings', {
       method: 'POST', prefer: 'return=minimal',
@@ -97,7 +99,8 @@ export async function POST(req: Request) {
     });
     log('booking_saved', { ref });
   } catch (e) {
-    log('booking_save_failed', { ref, detail: String(e) });
+    log('booking_save_failed', { ref, detail: String(e).slice(0, 150) });
+    return json(503, { error: 'Unable to reserve your appointment. No payment was taken. Please contact us.' }, origin);
   }
   return json(200, { url: data.payment_link.url, ref }, origin);
 }
