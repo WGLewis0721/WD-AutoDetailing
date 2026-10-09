@@ -24,7 +24,7 @@ const members=await call('/bookings/team-member-booking-profiles');
 console.log('MF_TEAM HTTP='+members.status+' errors='+members.errors.join(',')+' matching='+(members.data.team_member_booking_profiles||[]).some(t=>t.team_member_id===process.env.SQUARE_APPOINTMENT_TEAM_MEMBER_ID&&t.is_bookable));
 const w=await call('/webhooks/subscriptions');
 const sub=(w.data.subscriptions||[]).find(x=>x.notification_url===process.env.SQUARE_WEBHOOK_URL&&x.enabled&&x.event_types?.includes('payment.created')&&x.event_types?.includes('payment.updated'));
-console.log('MF_WEBHOOK HTTP='+w.status+' subscription='+!!sub+' liveKeyPresent='+!!sub?.signature_key+' keyMatchesOld='+!!sub&&!!sub?.signature_key&&sub.signature_key===process.env.SQUARE_WEBHOOK_SIGNATURE_KEY+' errors='+w.errors.join(','));
+console.log('MF_WEBHOOK HTTP='+w.status+' subscription='+!!sub+' liveKeyPresent='+Boolean(sub?.signature_key)+' keyMatchesOld='+(Boolean(sub?.signature_key)&&sub.signature_key===process.env.SQUARE_WEBHOOK_SIGNATURE_KEY)+' errors='+w.errors.join(','));
 const loc=process.env.SQUARE_LOCATION_ID,team=process.env.SQUARE_APPOINTMENT_TEAM_MEMBER_ID;
 const locProfile=await call('/bookings/location-booking-profiles/'+loc);
 console.log('MF_LOCATION_PROFILE HTTP='+locProfile.status+' onlineBookingEnabled='+locProfile.data.location_booking_profile?.online_booking_enabled+' errors='+locProfile.errors.join(','));
