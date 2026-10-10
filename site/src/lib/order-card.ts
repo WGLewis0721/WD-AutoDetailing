@@ -57,7 +57,8 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-/** Returns PNG bytes: same site driveway/vehicle composition as the live receipt. */
+/** Export the image-first Design B card, using the live site's own driveway and
+ * transparent selected-vehicle artwork. No backend or screenshot dependency. */
 export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   if (!/^MF-[A-Z0-9]{8}$/.test(data.ref) || !data.vehicles.length ||
       ![data.totalCents, data.depositCents, data.balanceCents].every(Number.isSafeInteger) ||
@@ -69,106 +70,147 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   const token = (key: string, fallback: string) => style.getPropertyValue(key).trim() || fallback;
   const color = {
     black: token('--black', 'black'), gold: token('--gold', 'goldenrod'),
-    goldHi: token('--gold-hi', 'gold'), dark: token('--ink-2', 'black'),
-    light: token('--white', 'white'), muted: token('--muted-on-dark', 'silver'),
-    rule: token('--line-dark', 'gray'),
+    goldHi: token('--gold-hi', 'gold'), light: token('--white', 'white'),
+    muted: token('--muted-on-dark', 'silver'),
   };
-  // Item heights include the exact number of line items; the PNG never crops a multi-car order.
-  const cardHeight = 1000 + data.vehicles.reduce((sum, car) =>
-    sum + 900 + car.lines.length * 140, 0);
+  const withAlpha = (hex: string, opacity: number) =>
+    /^#[0-9a-f]{6}$/i.test(hex)
+      ? hex + Math.round(opacity * 255).toString(16).padStart(2, '0')
+      : hex;
+
+  // The scratch canvas is deliberately generous and trimmed afterward. Even
+  // four-car orders and wrapped add-on names must not lose price information.
+  const maxHeight = 1800 + data.vehicles.reduce((sum, car) =>
+    sum + 240 + car.lines.length * 125, 0);
   const canvas = document.createElement('canvas');
-  canvas.width = WIDTH; canvas.height = cardHeight;
+  canvas.width = WIDTH; canvas.height = maxHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw Error('Image export is not supported on this device');
-  const fill = (x: number, y: number, w: number, h: number, paint: string) => {
-    ctx.fillStyle = paint; ctx.fillRect(x, y, w, h);
+  const fill = (x: number, y: number, width: number, height: number, paint: string) => {
+    ctx.fillStyle = paint; ctx.fillRect(x, y, width, height);
   };
   const label = (value: string, x: number, y: number, size = 23, paint = color.light, bold = false) => {
     ctx.font = (bold ? '700 ' : '500 ') + size + 'px ' + SANS;
     ctx.fillStyle = paint; ctx.fillText(value, x, y);
   };
-  const right = (value: string, y: number, size = 26, paint = color.light) => {
-    ctx.textAlign = 'right'; label(value, WIDTH - PAD, y, size, paint, true); ctx.textAlign = 'left';
+  const right = (value: string, y: number, size = 27, paint = color.light) => {
+    ctx.textAlign = 'right';
+    label(value, WIDTH - PAD, y, size, paint, true);
+    ctx.textAlign = 'left';
   };
-  const rule = (y: number) => fill(PAD, y, SPAN, 2, color.rule);
-  const serif = (value: string, x: number, y: number, size = 55, paint = color.light) => {
+  const serif = (value: string, x: number, y: number, size = 58, paint = color.light) => {
     ctx.font = size + 'px ' + SERIF; ctx.fillStyle = paint; ctx.fillText(value, x, y);
   };
-  fill(0, 0, WIDTH, cardHeight, color.black);
-  fill(0, 0, WIDTH, 10, color.gold);
-  label('MIRROR FINISH  /  ORDER SUMMARY', PAD, 84, 23, color.goldHi, true);
-  serif('Detail request', PAD, 163, 67);
-  label('AWAITING CONFIRMATION', PAD, 216, 22, color.goldHi, true);
-  rule(248);
-  label('REFERENCE', PAD, 292, 18, color.muted, true);
-  label(data.ref, PAD + 150, 292, 23, color.light, true);
-  label('REQUESTED', PAD, 333, 18, color.muted, true);
-  label(data.when, PAD + 150, 333, 22, color.light, true);
-  let y = 372;
-  ctx.textBaseline = 'alphabetic';
-  const ready = await Promise.all(data.vehicles.map(async v =>
-    ({ plate: await image(v.plateUrl), vehicle: await image(v.imageUrl) })));
+  const rule = (y: number) => fill(PAD, y, SPAN, 1, withAlpha(color.light, .22));
+  const textLines = (text: string, x: number, y: number, maxWidth: number, size: number, lineHeight: number, paint: string) => {
+    ctx.font = '500 ' + size + 'px ' + SANS;
+    const lines = wrap(ctx, text, maxWidth);
+    lines.forEach((line, i) => label(line, x, y + i * lineHeight, size, paint));
+    return lines.length * lineHeight;
+  };
+
+  fill(0, 0, WIDTH, maxHeight, color.black);
+  const first = data.vehicles[0];
+  const plate = await image(first.plateUrl);
+  const car = await image(first.imageUrl);
+  // Full bleed: the same two-layer registered composition as the configurator,
+  // with no inset image frame or car-on-glow treatment.
+  if (plate) cover(ctx, plate, 0, 0, WIDTH, 665);
+  if (car) cover(ctx, car, 0, 0, WIDTH, 665);
+  const gradient = ctx.createLinearGradient(0, 0, 0, 850);
+  gradient.addColorStop(0, withAlpha(color.black, .44));
+  gradient.addColorStop(.16, withAlpha(color.black, .06));
+  gradient.addColorStop(.39, withAlpha(color.black, .32));
+  gradient.addColorStop(.66, withAlpha(color.black, .89));
+  gradient.addColorStop(.87, color.black);
+  gradient.addColorStop(1, color.black);
+  ctx.fillStyle = gradient; ctx.fillRect(0, 0, WIDTH, 850);
+
+  label('MIRROR FINISH  /  ORDER SUMMARY', PAD, 76, 20, color.light, true);
+  right('AWAITING CONFIRMATION', 76, 20, color.light);
+  label('VEHICLE 1  /  YOUR DETAIL', PAD, 465, 20, color.goldHi, true);
+
+  ctx.font = '76px ' + SERIF;
+  const firstLines = wrap(ctx, first.name, SPAN);
+  let y = 552;
+  for (const line of firstLines) { serif(line, PAD, y, 76); y += 83; }
+  label(first.packageName + ' detail', PAD, y + 2, 27);
+  y += 62;
+
+  label('REFERENCE', PAD, y, 19, color.muted, true);
+  label(data.ref, PAD + 167, y, 21, color.light, true);
+  y += 42;
+  label('REQUESTED', PAD, y, 19, color.muted, true);
+  y += textLines(data.when, PAD + 167, y, SPAN - 167, 21, 31, color.light);
+  y += 30;
+
   for (let i = 0; i < data.vehicles.length; i++) {
-    const car = data.vehicles[i], art = ready[i];
-    fill(PAD, y, SPAN, 354, color.dark);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(PAD + 2, y + 2, SPAN - 4, 350); ctx.clip();
-    // Both bitmaps use the exact same original art frame, so the transparent
-    // car remains registered to the real driveway rather than a generic glow.
-    if (art.plate) cover(ctx, art.plate, PAD, y, SPAN, 354);
-    if (art.vehicle) cover(ctx, art.vehicle, PAD, y, SPAN, 354);
-    else { serif('MIRROR FINISH', PAD + 46, y + 190, 48, color.goldHi); }
-    ctx.restore();
-    y += 390;
-    label('VEHICLE ' + (i + 1), PAD, y, 22, color.goldHi, true);
-    ctx.font = '53px ' + SERIF;
-    const nameLines = wrap(ctx, car.name, SPAN);
-    y += 58;
-    for (const line of nameLines) { serif(line, PAD, y, 53); y += 56; }
-    label(car.packageName + ' detail', PAD, y + 7, 26, color.muted);
-    y += 45;
-    for (const line of car.lines) {
-      rule(y);
-      ctx.font = '24px ' + SANS;
-      const words = wrap(ctx, line.label, SPAN - 200);
-      for (let j = 0; j < words.length; j++) {
-        label(words[j], PAD, y + 37 + j * 30, 24, color.muted);
-      }
-      right(cardMoney(line.cents), y + 37, 26);
-      y += Math.max(51, 37 + words.length * 30);
+    const v = data.vehicles[i];
+    if (i) {
+      label('VEHICLE ' + (i + 1), PAD, y, 19, color.goldHi, true);
+      y += 56;
+      ctx.font = '45px ' + SERIF;
+      for (const line of wrap(ctx, v.name, SPAN)) { serif(line, PAD, y, 45); y += 51; }
+      label(v.packageName + ' detail', PAD, y, 23, color.muted);
+      y += 46;
+    } else {
+      label('YOUR SELECTED SERVICES', PAD, y, 19, color.goldHi, true);
+      y += 36;
     }
-    y += 35;
+    for (const line of v.lines) {
+      ctx.font = '25px ' + SANS;
+      const wrapped = wrap(ctx, line.label, SPAN - 205);
+      const rowHeight = Math.max(48, wrapped.length * 33 + 5);
+      for (let n = 0; n < wrapped.length; n++) {
+        label(wrapped[n], PAD, y + n * 33, 25, color.muted);
+      }
+      right(cardMoney(line.cents), y, 27);
+      y += rowHeight;
+    }
+    y += 18;
   }
-  rule(y); y += 58;
-  label('SERVICE TOTAL', PAD, y, 28, color.muted, true);
-  right(cardMoney(data.totalCents), y, 39);
-  y += 36;
-  fill(PAD, y, SPAN, 114, color.dark);
-  ctx.strokeStyle = color.gold; ctx.lineWidth = 2;
-  ctx.strokeRect(PAD + 1, y + 1, SPAN - 2, 112);
-  label('DEPOSIT AT CHECKOUT  /  AFTER CONFIRMATION', PAD + 22, y + 48, 21, color.goldHi, true);
-  label('20%  ·  NOT CHARGED YET', PAD + 22, y + 83, 20, color.goldHi);
+
+  y += 12; rule(y);
+  y += 51;
+  label('Service total', PAD, y, 28, color.muted);
+  right(cardMoney(data.totalCents), y, 36);
+  y += 72;
+  label('DEPOSIT AT CHECKOUT', PAD, y, 23, color.goldHi, true);
   ctx.textAlign = 'right';
-  serif(cardMoney(data.depositCents), WIDTH - PAD - 22, y + 81, 54, color.goldHi);
+  serif(cardMoney(data.depositCents), WIDTH - PAD, y + 20, 57, color.goldHi);
   ctx.textAlign = 'left';
-  y += 170;
-  label('REMAINING BALANCE AFTER DETAIL', PAD, y, 24, color.muted, true);
-  right(cardMoney(data.balanceCents), y, 33);
-  y += 46; rule(y); y += 53;
-  label('CHARGED TODAY', PAD, y, 26, color.goldHi, true);
-  right('$0.00', y, 37, color.goldHi);
+  label('20% · after confirmation', PAD, y + 35, 20, color.muted);
+  y += 91;
+  label('Remaining balance after detail', PAD, y, 25, color.muted);
+  right(cardMoney(data.balanceCents), y, 32);
+  y += 42; rule(y);
   y += 50;
-  label('REQUEST ONLY  ·  APPOINTMENT NOT YET CONFIRMED', PAD, y, 18, color.muted, true);
-  // Trim the generous scratch canvas to the actual receipt length; long multi-car
-  // orders never crop or end in large blank black space.
-  if (y + 24 > cardHeight) throw Error('Order card layout exceeds export size');
-  const finished = document.createElement('canvas');
-  finished.width = WIDTH; finished.height = Math.ceil(y + 50);
-  const out = finished.getContext('2d');
+  label('Charged today', PAD, y, 23, color.muted);
+  right('$0.00', y, 29, color.muted);
+  y += 62;
+
+  // Static representation of the clickable white pill on the live website.
+  const pillY = y, pillH = 82;
+  ctx.fillStyle = color.light;
+  ctx.beginPath();
+  ctx.roundRect(PAD, pillY, SPAN, pillH, 41);
+  ctx.fill();
+  ctx.textAlign = 'center';
+  label('TEXT MY ORDER TO CONFIRM', WIDTH / 2, pillY + 52, 25, color.black, true);
+  ctx.textAlign = 'left';
+  y += pillH + 49;
+  label('REQUEST ONLY  ·  NO PAYMENT COLLECTED', PAD, y, 19, color.muted, true);
+  y += 28;
+  label('Appointment and deposit instructions require confirmation.', PAD, y, 19, color.muted);
+
+  if (y + 30 > maxHeight) throw Error('Order card layout exceeds export size');
+  const output = document.createElement('canvas');
+  output.width = WIDTH; output.height = Math.ceil(y + 57);
+  const out = output.getContext('2d');
   if (!out) throw Error('Image export is unavailable');
-  out.drawImage(canvas, 0, 0, WIDTH, finished.height, 0, 0, WIDTH, finished.height);
+  out.drawImage(canvas, 0, 0, WIDTH, output.height, 0, 0, WIDTH, output.height);
   return new Promise<Blob>((resolve, reject) => {
-    finished.toBlob(blob => blob ? resolve(blob) : reject(Error('PNG could not be generated')), 'image/png');
+    output.toBlob(blob => blob ? resolve(blob) : reject(Error('PNG could not be generated')), 'image/png');
   });
 }
 
