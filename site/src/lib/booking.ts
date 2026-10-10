@@ -441,24 +441,22 @@ async function requestLive() {
     }
     const quoted = order();
     const when = whenLabel();
+    // Image-first Design B: one continuous photographic card.
+    // Keep every vehicle's existing priced lines, including add-ons and size fees.
+    const leadCar = s.cars[0];
+    const leadPackage = packages.find(p => p.id === leadCar.packageId);
+    const leadArt = leadCar.mesh
+      ? `<img class="request-photo-plate" src="${esc(vehicleStagePlateUrl())}" alt="" loading="eager">
+         <img class="request-photo-vehicle" src="${esc(vehicleStillUrl(leadCar.mesh))}" alt="" loading="eager">`
+      : `<img class="request-photo-plate" src="${esc(vehicleStagePlateUrl())}" alt="" loading="eager">`;
     const vehicleLines = s.cars.map((c, i) => {
-      const p = packages.find(p => p.id === c.packageId);
+      const selectedPackage = packages.find(p => p.id === c.packageId);
       const choices = quoted.cars[i].lines.map(l =>
-        `<li><span>${esc(l.label)}</span><strong>${fmt(l.cents)}</strong></li>`).join('');
-      const art = c.mesh
-        ? `<div class="request-art-scene">
-            <img class="request-art-plate" src="${esc(vehicleStagePlateUrl())}" alt="" aria-hidden="true" loading="eager">
-            <img class="request-art-vehicle" src="${esc(vehicleStillUrl(c.mesh))}" alt="Illustration of the selected ${esc(carLabel(c))} vehicle style" loading="eager">
-          </div>`
-        : icon('car', 70);
-      return `<section class="request-item">
-        <div class="request-item-art">${art}</div>
-        <div class="request-item-body">
-          <span class="request-item-no">VEHICLE ${i + 1}</span>
-          <h3>${esc(carLabel(c))}</h3>
-          <p>${esc(p?.name ?? 'Detail')} detail</p>
-          <ul class="request-items">${choices}</ul>
-        </div>
+        `<li><span>${esc(l.label)}</span><b>${fmt(l.cents)}</b></li>`).join('');
+      return `<section class="request-order-vehicle${i ? ' request-order-vehicle--additional' : ''}">
+        ${i ? `<div class="request-other-heading"><span class="request-overline">VEHICLE ${i + 1}</span><h3>${esc(carLabel(c))}</h3><p>${esc(selectedPackage?.name ?? 'Detail')} detail</p></div>`
+          : `<p class="request-overline request-services-label">YOUR SELECTED SERVICES</p>`}
+        <ul class="request-items">${choices}</ul>
       </section>`;
     }).join('');
     const orderCard: OrderCardData = {
@@ -505,27 +503,39 @@ async function requestLive() {
       <h1>Your detail is <em>one step closer.</em></h1>
       <p class="lead">Here's your complete order. Your preferred time is awaiting confirmation; no payment was taken.</p>
       <article id="request-order-card" class="request-receipt" aria-label="Mirror Finish order summary">
-        <header class="request-receipt-header">
-          <div><span class="request-overline">MIRROR FINISH / ORDER SUMMARY</span><strong>Detail request</strong></div>
-          <span class="request-status">Awaiting confirmation</span>
-        </header>
-        <div class="request-receipt-meta">
-          <span>REFERENCE <b>${esc(data.ref)}</b></span>
-          <span>REQUESTED <b>${esc(when)}</b></span>
+        <div class="request-receipt-media" aria-hidden="true">
+          ${leadArt}
         </div>
-        ${vehicleLines}
-        <div class="request-price">
-          <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
-          <div class="request-deposit"><span>Deposit at checkout, after confirmation <small>20%</small></span><strong>${fmt(depositCents)}</strong></div>
-          <div><span>Remaining balance after your detail</span><strong>${fmt(balanceCents)}</strong></div>
+        <div class="request-receipt-shade" aria-hidden="true"></div>
+        <div class="request-receipt-inner">
+          <header class="request-receipt-header">
+            <span class="request-brand">MIRROR FINISH <span>/ ORDER SUMMARY</span></span>
+            <span class="request-status">Awaiting confirmation</span>
+          </header>
+          <div class="request-receipt-content">
+            <p class="request-overline">VEHICLE 1 ${s.cars.length > 1 ? `/ ${s.cars.length} VEHICLES` : '/ YOUR DETAIL'}</p>
+            <h2 class="request-vehicle-title">${esc(carLabel(leadCar))}</h2>
+            <p class="request-service-title">${esc(leadPackage?.name ?? 'Detail')} detail</p>
+            <div class="request-receipt-meta" aria-label="Request details">
+              <span>REFERENCE <b>${esc(data.ref)}</b></span>
+              <span>REQUESTED <b>${esc(when)}</b></span>
+            </div>
+            ${vehicleLines}
+            <div class="request-price" aria-label="Price breakdown">
+              <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
+              <div class="request-deposit"><span>Deposit at checkout <small>20% · after confirmation</small></span><strong>${fmt(depositCents)}</strong></div>
+              <div><span>Remaining balance after detail</span><strong>${fmt(balanceCents)}</strong></div>
+              <div class="request-receipt-footer"><span>Charged today</span><b>$0.00</b></div>
+            </div>
+            <a class="request-receipt-cta" href="${smsLink}">
+              ${icon('phone', 20)} <span>Text my order to confirm</span> ${icon('arrow', 20)}
+            </a>
+            <p class="request-receipt-note">Appointment request only. No payment collected. We'll confirm your time and deposit instructions by text.</p>
+          </div>
         </div>
-        <footer class="request-receipt-footer">
-          <span>CHARGED TODAY</span><b>$0.00</b>
-        </footer>
       </article>
       <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
       <div class="request-actions">
-        <a class="btn btn--lg" href="${smsLink}">${icon('phone', 19)}<span>Text my order to confirm</span></a>
         <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
         <button id="share-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Share order card</span></button>
       </div>
