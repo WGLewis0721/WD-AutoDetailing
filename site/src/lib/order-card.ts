@@ -69,9 +69,9 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   const style = getComputedStyle(document.documentElement);
   const token = (key: string, fallback: string) => style.getPropertyValue(key).trim() || fallback;
   const color = {
-    black: token('--black', '#0b0b0c'), gold: token('--gold', '#c8a45c'),
-    goldHi: token('--gold-hi', '#e2c07a'), light: token('--white', '#ffffff'),
-    muted: token('--muted-on-dark', '#b9b4a8'),
+    black: token('--black', 'black'), gold: token('--gold', 'goldenrod'),
+    goldHi: token('--gold-hi', 'gold'), light: token('--white', 'white'),
+    muted: token('--muted-on-dark', 'silver'),
   };
   const withAlpha = (hex: string, opacity: number) =>
     /^#[0-9a-f]{6}$/i.test(hex)
