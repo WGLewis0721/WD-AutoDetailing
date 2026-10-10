@@ -29,12 +29,15 @@ describe('shareable order card PNG', () => {
     const drawn: string[] = [];
     const labels: string[] = [];
     const images: unknown[] = [];
+    const gradientStops: {stop:number;color:string}[] = [];
     const ctx = {
       fillStyle: '', strokeStyle: '', textAlign: 'left', textBaseline: 'alphabetic',
       font: '', lineWidth: 1,
       fillRect: vi.fn(), fillText: vi.fn((label: string) => { labels.push(label); }),
       drawImage: vi.fn((image: object) => { images.push(image); }),
       save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(),
+      fill: vi.fn(), roundRect: vi.fn(),
+      createLinearGradient: vi.fn(() => ({ addColorStop: (stop: number, color: string) => { gradientStops.push({stop,color}); } })),
       strokeRect: vi.fn(), measureText: vi.fn((text: string) => ({ width: text.length * 15 })),
     };
     const canvas = () => ({
@@ -58,6 +61,9 @@ describe('shareable order card PNG', () => {
     expect(labels).toContain('Headlight Restoration');
     expect(labels).toContain('$65.00');
     expect(labels).toContain('AWAITING CONFIRMATION');
+    expect(labels).toContain('TEXT MY ORDER TO CONFIRM');
+    expect(gradientStops.length).toBeGreaterThanOrEqual(4);
+    expect(ctx.roundRect).toHaveBeenCalled();
     expect(labels).toContain('$0.00');
   });
 
