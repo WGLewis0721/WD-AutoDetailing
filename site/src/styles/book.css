@@ -95,6 +95,11 @@
 
 /* details + deposit */
 .errsum { background: var(--ivory); border-left: 3px solid var(--danger); border-radius: var(--radius); padding: var(--s3) var(--s4); margin: var(--s4) 0; font-size: var(--fs-sm); }
+/* water and electricity notice: shown where the address is entered, before booking, and on the request screen */
+.need { display: flex; gap: var(--s3); align-items: flex-start; margin: var(--s4) 0; padding: var(--s3) var(--s4); background: var(--ivory); border: 1.5px solid var(--gold); border-radius: var(--radius); font-size: var(--fs-sm); }
+.need .need-ic { display: inline-flex; gap: var(--s1); color: var(--gold-deep); flex: none; padding-top: 2px; }
+.need b { display: block; margin-bottom: 2px; font-size: var(--fs-md); }
+.need p { margin: 0; color: var(--muted); }
 .rev { width: 100%; border-collapse: collapse; }
 .rev th, .rev td { padding: var(--s3) 0; border-bottom: 1px solid var(--line-light); text-align: left; font-weight: 500; vertical-align: top; }
 .rev td { text-align: right; font-weight: 700; }

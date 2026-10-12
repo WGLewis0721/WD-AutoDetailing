@@ -5,6 +5,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE } from '../data/site';
 import { packages, sizes, extras } from '../data/menu';
+import { SHOW_DEPOSIT, SHOW_SIZE_PRICES } from '../lib/display';
 import { fmt } from '../lib/pricing';
 import { icon } from '../lib/icons';
 import { bodyStyles, makes } from '../lib/vehicles';
@@ -32,12 +33,19 @@ const gallery = [
 const steps = [
   ['Tell us your vehicle', 'Pick the year, make and model. We set the size and price for you.'],
   ['Build your detail', 'Choose a package and any add-ons. Your total updates as you go.'],
-  ['Pick a time, pay 20%', 'Reserve your spot with a small deposit. The rest is due after the detail.'],
+  SHOW_DEPOSIT
+    ? ['Pick a time, pay 20%', 'Reserve your spot with a small deposit. The rest is due after the detail.']
+    : ['Pick a time', 'Choose the time that works for you and we will confirm it with you.'],
 ];
 const faqs = [
   ['Do you really come to me?', 'Yes. Mirror Finish is mobile. We detail your vehicle where it is parked, at home or at work, across Montgomery and the River Region.'],
-  ['How does pricing work?', 'Each package has a base price for a sedan or coupe. Larger vehicles add a size charge, from $20 for a small SUV or truck up to $60 for a van, 3-row SUV or HD truck. Add-ons are priced separately.'],
-  ['What is the deposit?', 'You pay 20% of your total to reserve the time. The rest is due after the detail. The final price can vary with vehicle condition and size after inspection.'],
+  ['What do I need to provide?', 'Because we come to you, we need access to water and electricity: an outdoor water spigot and a standard electrical outlet close to where the vehicle will be parked.'],
+  SHOW_SIZE_PRICES
+    ? ['How does pricing work?', 'Each package has a base price for a sedan or coupe. Larger vehicles add a size charge, from $20 for a small SUV or truck up to $60 for a van, 3-row SUV or HD truck. Add-ons are priced separately.']
+    : ['How does pricing work?', 'Each package has a base price for a sedan or coupe. Larger vehicles cost more, and your total updates as you build your detail. Add-ons are priced separately.'],
+  SHOW_DEPOSIT
+    ? ['What is the deposit?', 'You pay 20% of your total to reserve the time. The rest is due after the detail. The final price can vary with vehicle condition and size after inspection.']
+    : ['Is there a deposit?', 'We take a deposit to reserve your time and confirm the amount with you when we confirm your appointment. The rest is due after the detail. The final price can vary with vehicle condition and size after inspection.'],
   ['Can I book more than one vehicle?', 'Yes. You can add up to four vehicles to one order and choose a package for each.'],
   ['Where do you serve?', `${SITE.serviceArea.join(', ')}, AL. Not sure if you are in range? Text ${SITE.phoneDisplay}.`],
 ];
@@ -70,7 +78,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
           <ul class="trust reveal" style="--d:320ms">
             <li><Fragment set:html={icon('home', 18)} />We come to you</li>
             <li><Fragment set:html={icon('clock', 18)} />Instant pricing</li>
-            <li><Fragment set:html={icon('shield', 18)} />20% deposit books it</li>
+            <li><Fragment set:html={icon('shield', 18)} />{SHOW_DEPOSIT ? '20% deposit books it' : 'A deposit books it'}</li>
           </ul>
         </div>
         <div class="hero-art reveal" style="--d:200ms">
@@ -113,6 +121,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
       </div>
     </section>
 
+    {SHOW_SIZE_PRICES && (
     <section id="sizes" class="section tint">
       <div class="wrap wide">
         <div class="head reveal"><p class="eyebrow">Pricing by size</p><h2>Priced to <em>your vehicle</em></h2><p class="lead">Package prices are for a sedan or coupe. Larger vehicles add a size charge, and the booking tool works it out for you.</p></div>
@@ -142,6 +151,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
         </div>
       </div>
     </section>
+    )}
 
     <section id="extras" class="section">
       <div class="wrap split">

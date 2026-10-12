@@ -1,5 +1,6 @@
 ---
 import { SITE } from '../data/site';
+import { SHOW_SIZE_PRICES } from '../lib/display';
 ---
 <footer class="foot">
   <div class="wrap">
@@ -9,7 +10,7 @@ import { SITE } from '../data/site';
         <p>Mobile detailing that comes to you. {SITE.tagline}.</p>
         <p><a href={SITE.phoneTel}>{SITE.phoneDisplay}</a></p>
       </div>
-      <div><h4>Book</h4><ul><li><a href="/book">Build my detail</a></li><li><a href="/#packages">Packages</a></li><li><a href="/#sizes">Pricing by size</a></li></ul></div>
+      <div><h4>Book</h4><ul><li><a href="/book">Build my detail</a></li><li><a href="/#packages">Packages</a></li>{SHOW_SIZE_PRICES && <li><a href="/#sizes">Pricing by size</a></li>}</ul></div>
       <div><h4>We serve</h4><ul>{SITE.serviceArea.slice(0, 4).map((c) => <li>{c}, {SITE.region}</li>)}</ul></div>
       <div><h4>&nbsp;</h4><ul>{SITE.serviceArea.slice(4).map((c) => <li>{c}, {SITE.region}</li>)}</ul></div>
     </div>

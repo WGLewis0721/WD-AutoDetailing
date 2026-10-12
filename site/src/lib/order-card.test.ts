@@ -15,9 +15,16 @@ const card: OrderCardData = {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('shareable order card PNG', () => {
-  it('keeps exact 20% deposit and outstanding balance in an order-specific filename', () => {
+  it('uses an order-specific filename and keeps the deposit and balance hidden from the card while they are hidden', () => {
     expect(cardFilename(card.ref)).toBe('mirror-finish-order-MF-ABC12345.png');
     expect(cardTotals(card)).toEqual([
+      { label: 'Service total', amount: '$325.00' },
+      { label: 'Charged today', amount: '$0.00' },
+    ]);
+  });
+
+  it('still computes the exact 20% deposit and balance when they are switched back on', () => {
+    expect(cardTotals(card, true)).toEqual([
       { label: 'Service total', amount: '$325.00' },
       { label: 'Deposit at checkout (20%)', amount: '$65.00' },
       { label: 'Remaining balance after detail', amount: '$260.00' },
@@ -59,12 +66,35 @@ describe('shareable order card PNG', () => {
     expect(labels).toContain('2021 Chevrolet Corvette');
     expect(labels).toContain('Friday, October 30 at 2:00 PM');
     expect(labels).toContain('Headlight Restoration');
-    expect(labels).toContain('$65.00');
+    expect(labels).toContain('$325.00');
+    expect(labels).not.toContain('$65.00'); // deposit hidden
+    expect(labels).not.toContain('$260.00'); // so is the balance, which would give it away
+    expect(labels).not.toContain('DEPOSIT AT CHECKOUT');
     expect(labels).toContain('AWAITING CONFIRMATION');
     expect(labels).toContain('TEXT MY ORDER TO CONFIRM');
     expect(gradientStops.length).toBeGreaterThanOrEqual(4);
     expect(ctx.roundRect).toHaveBeenCalled();
     expect(labels).toContain('$0.00');
+  });
+
+  it('shows a hidden size charge as included in the total instead of its price', async () => {
+    const labels: string[] = [];
+    const ctx = {
+      fillStyle: '', strokeStyle: '', textAlign: 'left', textBaseline: 'alphabetic', font: '', lineWidth: 1,
+      fillRect: vi.fn(), fillText: vi.fn((label: string) => { labels.push(label); }), drawImage: vi.fn(),
+      save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), fill: vi.fn(), roundRect: vi.fn(),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })), strokeRect: vi.fn(), measureText: vi.fn((text: string) => ({ width: text.length * 15 })),
+    };
+    const canvas = () => ({ width: 0, height: 0, getContext: () => ctx, toBlob: (cb: (b: Blob | null) => void) => cb(new Blob(['x'], { type: 'image/png' })) });
+    vi.stubGlobal('document', { fonts: { ready: Promise.resolve() }, documentElement: {}, createElement: canvas });
+    vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (name: string) => name }));
+    class MockImage { decoding = ''; crossOrigin = ''; naturalWidth = 1600; naturalHeight = 1000; onload?: () => void; onerror?: () => void; set src(_v: string) { this.onload?.(); } }
+    vi.stubGlobal('Image', MockImage);
+    const sized: OrderCardData = { ...card, totalCents: 37500, depositCents: 7500, balanceCents: 30000, vehicles: [{ ...card.vehicles[0], lines: [...card.vehicles[0].lines, { label: 'Standard SUV or Truck', cents: 4000, amount: 'Included in total' }] }] };
+    await renderOrderCardPng(sized);
+    expect(labels).toContain('Standard SUV or Truck');
+    expect(labels).toContain('Included in total');
+    expect(labels).not.toContain('$40.00');
   });
 
   it('does not export a mismatched or unpriced receipt', async () => {

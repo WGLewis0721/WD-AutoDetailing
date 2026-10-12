@@ -172,3 +172,22 @@ database not connected)" into the Square payment note; the build is not saved. O
   checklist, the menu or the design, run it and commit the PDF with `src/data/checklist.hash`; `checklist.test.ts` fails if
   they disagree or if a package or add-on has no checklist section. Download buttons: home page (under the packages), the
   "request received" screen and the Detail Pass.
+
+## Round 10: deposit and size prices hidden, water and electricity notice (2026-10-12)
+
+- **Display switches** in `site/src/data/site.ts`: `SITE.display = { deposit: false, sizePrices: false }`. They only control what
+  customers see; quotes, totals and the stored order are unchanged. Set either to `true` to show it again (rebuild).
+  - `deposit: false` hides the deposit amount **and the balance due after the detail** (the balance would reveal the
+    deposit): booking side summary, mobile total bar, review table, the request screen, the text-message summary, the
+    downloadable order card (PNG), the Detail Pass, and the home page wording (the 20% figure, "pay 20%", "What is the deposit?").
+  - `sizePrices: false` hides every per-size price: the "Pricing by size" section and its nav/footer links, the FAQ figures,
+    "Detected size +$40" in the booking flow, and the size line in the summary, receipt and card, which reads "Included in
+    total". **Totals still include the size charge** ($75 Deluxe on a 3-row SUV shows a $135 total).
+- Helpers and tests: `site/src/lib/display.ts`, `display.test.ts`. The paid checkout (Square) is unchanged and still lists
+  the size line if deposits are ever switched on.
+- **Not changed:** the Service Agreement (clause 3) still states "A 20% deposit is required". It is a versioned legal text;
+  changing it means bumping `AGREEMENT.version` so every customer is asked to accept it again.
+- **Water and electricity:** a "Water and electricity required" notice (`utilityNotice()` in `booking.ts`, styled `.need`) shows
+  on the Details step under the address, on the Review step, and on the request-received screen. The review checkbox now
+  also reads "...and that I will provide accessible water and electricity at the service location", the text-message
+  summary carries the same line, and the home page FAQ has "What do I need to provide?".

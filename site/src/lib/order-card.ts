@@ -2,7 +2,8 @@
  * Canvas uses the same driveway plate, transparent car cutouts, and design
  * tokens as the booking configurator. No customer details leave the device.
  */
-export interface CardLine { label: string; cents: number }
+/** amount: text shown instead of the money (e.g. a hidden size charge shown as included in the total). */
+export interface CardLine { label: string; cents: number; amount?: string }
 export interface CardVehicle {
   name: string; packageName: string; plateUrl: string; imageUrl: string | null; lines: CardLine[];
 }
@@ -11,13 +12,18 @@ export interface OrderCardData {
   totalCents: number; depositCents: number; balanceCents: number;
 }
 
+import { SHOW_DEPOSIT } from './display';
+
 export const cardFilename = (ref: string) =>
   'mirror-finish-order-' + (ref.match(/^MF-[A-Z0-9]{8}$/)?.[0] || 'request') + '.png';
 export const cardMoney = (cents: number) => '$' + (cents / 100).toFixed(2);
-export const cardTotals = (data: OrderCardData) => [
+/** The deposit and the balance are shown together or not at all (the balance would give the deposit away). */
+export const cardTotals = (data: OrderCardData, showDeposit: boolean = SHOW_DEPOSIT) => [
   { label: 'Service total', amount: cardMoney(data.totalCents) },
-  { label: 'Deposit at checkout (20%)', amount: cardMoney(data.depositCents) },
-  { label: 'Remaining balance after detail', amount: cardMoney(data.balanceCents) },
+  ...(showDeposit ? [
+    { label: 'Deposit at checkout (20%)', amount: cardMoney(data.depositCents) },
+    { label: 'Remaining balance after detail', amount: cardMoney(data.balanceCents) },
+  ] : []),
   { label: 'Charged today', amount: '$0.00' },
 ];
 
@@ -159,12 +165,12 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
     }
     for (const line of v.lines) {
       ctx.font = '25px ' + SANS;
-      const wrapped = wrap(ctx, line.label, SPAN - 205);
+      const wrapped = wrap(ctx, line.label, SPAN - (line.amount ? 290 : 205));
       const rowHeight = Math.max(48, wrapped.length * 33 + 5);
       for (let n = 0; n < wrapped.length; n++) {
         label(wrapped[n], PAD, y + n * 33, 25, color.muted);
       }
-      right(cardMoney(line.cents), y, 27);
+      if (line.amount) right(line.amount, y, 22, color.muted); else right(cardMoney(line.cents), y, 27);
       y += rowHeight;
     }
     y += 18;
@@ -174,15 +180,17 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   y += 51;
   label('Service total', PAD, y, 28, color.muted);
   right(cardMoney(data.totalCents), y, 36);
-  y += 72;
-  label('DEPOSIT AT CHECKOUT', PAD, y, 23, color.goldHi, true);
-  ctx.textAlign = 'right';
-  serif(cardMoney(data.depositCents), WIDTH - PAD, y + 20, 57, color.goldHi);
-  ctx.textAlign = 'left';
-  label('20% · after confirmation', PAD, y + 35, 20, color.muted);
-  y += 91;
-  label('Remaining balance after detail', PAD, y, 25, color.muted);
-  right(cardMoney(data.balanceCents), y, 32);
+  if (SHOW_DEPOSIT) {
+    y += 72;
+    label('DEPOSIT AT CHECKOUT', PAD, y, 23, color.goldHi, true);
+    ctx.textAlign = 'right';
+    serif(cardMoney(data.depositCents), WIDTH - PAD, y + 20, 57, color.goldHi);
+    ctx.textAlign = 'left';
+    label('20% · after confirmation', PAD, y + 35, 20, color.muted);
+    y += 91;
+    label('Remaining balance after detail', PAD, y, 25, color.muted);
+    right(cardMoney(data.balanceCents), y, 32);
+  }
   y += 42; rule(y);
   y += 50;
   label('Charged today', PAD, y, 23, color.muted);

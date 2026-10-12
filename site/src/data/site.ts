@@ -8,5 +8,9 @@ export const SITE = {
   serviceArea: ['Montgomery', 'Wetumpka', 'Prattville', 'Pike Road', 'Millbrook', 'Cecil', 'Hayneville', 'White Hall'],
   region: 'AL',
   instagramUrl: 'https://www.instagram.com/mfmd_mgm/',
+  /* What customers are shown. Pricing itself is unchanged; these only control display, so either can be switched
+     back on later. deposit: the deposit amount and the balance due after the detail (the balance would reveal it).
+     sizePrices: the per-vehicle-size prices (the size line is then shown as included in the total). */
+  display: { deposit: false, sizePrices: false },
   schedule: { openHour: 8, closeHour: 18, closedDays: [0], stepMinutes: 60, leadDays: 1, horizonDays: 42 },
 } as const;

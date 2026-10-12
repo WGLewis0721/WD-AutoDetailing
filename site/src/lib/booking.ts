@@ -4,6 +4,7 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
+import { SHOW_DEPOSIT, SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, lineAmount } from './display';
 import { createStill, vehicleStillUrl, vehicleStagePlateUrl, type Still } from './stills';
 import { renderOrderCardPng, downloadCardBlob, shareCardBlob, cardFilename, type OrderCardData } from './order-card';
 import { AGREEMENT, agreementHash } from '../data/agreement';
@@ -188,7 +189,7 @@ function panelVehicle(): string {
     ${fleet()}
     <div class="card box"><p class="boxt">Car ${s.active + 1}</p>${auto}
     <button type="button" class="link" id="toggleManual">${c.manual ? 'Search by make and model instead' : 'Not listed? Pick a body style'}</button>
-    ${sz ? `<div class="found"><span>Detected size</span><b>${sz.name}</b><i>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</i></div>` : ''}</div>`;
+    ${sz ? `<div class="found"><span>Detected size</span><b>${sz.name}</b>${SHOW_SIZE_PRICES ? `<i>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</i>` : ''}</div>` : ''}</div>`;
 }
 
 function panelBuild(): string {
@@ -273,6 +274,10 @@ function panelWhen(): string {
     ${LIVE ? `<p class="note">${launchMode === 'request' ? 'You are requesting a time, not reserving one. No payment will be collected until the appointment is confirmed.' : 'Available times come from Square Appointments and are verified again before checkout.'}</p>` : `<p class="note">Preview mode. Times are not confirmed.</p>`}`;
 }
 
+/** Mobile service needs two things from the customer; shown where they enter the address and again before they book. */
+const utilityNotice = () => `<div class="need" role="note"><span class="need-ic" aria-hidden="true">${icon('droplet', 20)}${icon('bolt', 20)}</span>
+  <div><b>Water and electricity required</b><p>We detail at your location, so please make sure we can reach an outdoor water spigot and a standard electrical outlet close to where the vehicle will be parked. Not sure? ${textUs('Text us')} before you book.</p></div></div>`;
+
 const describe = (id: string) => (errors[id] ? `aria-invalid="true" aria-describedby="e-${id}"` : '');
 const field = (id: string, label: string, type: string, auto: string, val: string, extra = '') => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" autocomplete="${auto}" value="${esc(val)}" ${extra} ${describe(id)}><span class="err" id="e-${id}">${errors[id] ?? ''}</span></div>`;
 
@@ -285,7 +290,8 @@ function panelDetails(): string {
     <div class="card box"><p class="boxt">Where we are coming</p>${field('street', 'Street address', 'text', 'address-line1', s.street)}
     <div class="duo"><div class="field"><label for="city2">Town</label><select id="city2" autocomplete="address-level2" ${describe('city2')}>${cityOptions(s.city, false)}</select><span class="err" id="e-city2">${errors.city2 ?? ''}</span></div>
     ${field('zip', 'ZIP code', 'text', 'postal-code', s.zip, 'inputmode="numeric" maxlength="5"')}</div>
-    <div class="field"><label for="notes">Notes for your detailer <span class="opt-l">(optional)</span></label><textarea id="notes" rows="3" maxlength="400" placeholder="Gate code, where the vehicle is parked, anything we should know">${esc(s.notes)}</textarea></div></div>`;
+    <div class="field"><label for="notes">Notes for your detailer <span class="opt-l">(optional)</span></label><textarea id="notes" rows="3" maxlength="400" placeholder="Gate code, where the vehicle is parked, anything we should know">${esc(s.notes)}</textarea></div></div>
+    ${utilityNotice()}`;
 }
 
 function whenLabel(): string {
@@ -304,10 +310,11 @@ function panelDeposit(): string {
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
-    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
-    <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection.</span></label>
+    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr>${SHOW_DEPOSIT ? `<tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr>` : ''}</tbody></table></div>
+    ${utilityNotice()}
+    <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection, and that I will provide accessible water and electricity at the service location.</span></label>
     <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
-    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : 'Square will collect the 20% deposit securely after you continue.'}</p>`;
+    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : `Square will collect ${SHOW_DEPOSIT ? 'the 20% deposit' : 'your deposit'} securely after you continue.`}</p>`;
 }
 
 /* ---------- summary ---------- */
@@ -330,16 +337,17 @@ function summary() {
   const groups = o.cars.map((q, i) => {
     const c = s.cars[i];
     const label = carLabel(c);
-    return `<div class="sg"><p class="sgt"><b>Car ${i + 1}</b><span>${esc(label || 'Choose a vehicle')}</span></p>${q.lines.map((l) => `<div class="ln"><span>${esc(l.label)}</span><b class="num">${fmt(l.cents)}</b></div>`).join('')}${s.cars.length > 1 && q.totalCents ? `<div class="ln sub"><span>Car ${i + 1} subtotal</span><b class="num">${fmt(q.totalCents)}</b></div>` : ''}</div>`;
+    return `<div class="sg"><p class="sgt"><b>Car ${i + 1}</b><span>${esc(label || 'Choose a vehicle')}</span></p>${q.lines.map((l) => `<div class="ln"><span>${esc(l.label)}</span><b class="num">${lineAmount(l, fmt)}</b></div>`).join('')}${s.cars.length > 1 && q.totalCents ? `<div class="ln sub"><span>Car ${i + 1} subtotal</span><b class="num">${fmt(q.totalCents)}</b></div>` : ''}</div>`;
   }).join('');
   const where = inArea() ? `<div class="ln sub"><span>Where</span><b>${esc(s.city)}, ${SITE.region}</b></div>` : '';
   const when = s.date && s.startMin >= 0 ? `<div class="ln sub"><span>When</span><b>${whenLabel()}</b></div>` : '';
   $('summary').innerHTML = `<div class="sumhead"><span>Your order</span><b>${rd}% ready</b></div><div class="meter" aria-hidden="true"><i style="width:${rd}%"></i></div>${groups}${where}${when}
     <div class="ln tot"><span>Total</span><b class="num" id="grand">${fmt(lastTotal)}</b></div>
-    <div class="ln"><span>${launchMode === 'request' ? 'Deposit after confirmation (20%)' : 'Deposit today (20%)'}</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>`;
+    ${SHOW_DEPOSIT ? `<div class="ln"><span>${launchMode === 'request' ? 'Deposit after confirmation (20%)' : 'Deposit today (20%)'}</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>` : ''}`;
   tween($('grand'), lastTotal, o.totalCents);
-  tween($('dep'), lastDeposit, o.depositCents);
-  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b><small>${fmt(o.depositCents)} ${launchMode === 'request' ? 'after confirmation' : 'today'}${s.cars.length > 1 ? ' · ' + s.cars.length + ' cars' : ''}</small>` : '<small>Build your order</small>';
+  if (SHOW_DEPOSIT) tween($('dep'), lastDeposit, o.depositCents);
+  const mnote = [SHOW_DEPOSIT ? `${fmt(o.depositCents)} ${launchMode === 'request' ? 'after confirmation' : 'today'}` : '', s.cars.length > 1 ? s.cars.length + ' cars' : ''].filter(Boolean).join(' · ');
+  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b>${mnote ? `<small>${mnote}</small>` : ''}` : '<small>Build your order</small>';
   lastTotal = o.totalCents; lastDeposit = o.depositCents;
 }
 
@@ -360,7 +368,7 @@ function render(focus = false) {
   if (focus) { panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter'); panel.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true }); }
   const o = order();
   const busy = pay === 'processing';
-  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : `${pay === 'declined' ? 'Try again: pay' : 'Pay'} ${fmt(o.depositCents)} deposit to book`) : s.step === 4 ? 'Review order' : 'Continue';
+  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : `${pay === 'declined' ? 'Try again: pay' : 'Pay'}${SHOW_DEPOSIT ? ' ' + fmt(o.depositCents) : ''} deposit to book`) : s.step === 4 ? 'Review order' : 'Continue';
   const ok = s.step === 4 ? true : valid(s.step);
   for (const id of ['next', 'mnext']) { const b = $(id); b.innerHTML = `<span>${id === 'mnext' && s.step < 5 ? 'Next' : label}</span>${busy ? '' : icon('arrow', 18)}`; b.toggleAttribute('disabled', !ok); b.setAttribute('aria-busy', String(busy)); }
   $('back').toggleAttribute('hidden', s.step === 1);
@@ -369,7 +377,7 @@ function render(focus = false) {
   const c = car();
   viewer?.setModel(c.mesh);
   const sz = sizeOf(c);
-  $('vtag').innerHTML = sz ? `<b>${sz.name}</b><span>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</span>` : '<span>Pick a vehicle to see its size</span>';
+  $('vtag').innerHTML = sz ? `<b>${sz.name}</b>${SHOW_SIZE_PRICES ? `<span>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</span>` : ''}` : '<span>Pick a vehicle to see its size</span>';
   $('vcar').textContent = s.cars.length > 1 ? `Car ${s.active + 1} of ${s.cars.length}` : '';
   save();
   if (s.step === 3 && LIVE && s.date) void loadAvailability();
@@ -454,7 +462,7 @@ async function requestLive() {
     const vehicleLines = s.cars.map((c, i) => {
       const selectedPackage = packages.find(p => p.id === c.packageId);
       const choices = quoted.cars[i].lines.map(l =>
-        `<li><span>${esc(l.label)}</span><b>${fmt(l.cents)}</b></li>`).join('');
+        `<li><span>${esc(l.label)}</span><b>${lineAmount(l, fmt)}</b></li>`).join('');
       return `<section class="request-order-vehicle${i ? ' request-order-vehicle--additional' : ''}">
         ${i ? `<div class="request-other-heading"><span class="request-overline">VEHICLE ${i + 1}</span><h3>${esc(carLabel(c))}</h3><p>${esc(selectedPackage?.name ?? 'Detail')} detail</p></div>`
           : `<p class="request-overline request-services-label">YOUR SELECTED SERVICES</p>`}
@@ -470,7 +478,7 @@ async function requestLive() {
         packageName: packages.find(p => p.id === c.packageId)?.name ?? 'Detail',
         plateUrl: vehicleStagePlateUrl(),
         imageUrl: c.mesh ? vehicleStillUrl(c.mesh) : null,
-        lines: quoted.cars[i].lines.map(line => ({ label: line.label, cents: line.cents })),
+        lines: quoted.cars[i].lines.map(line => ({ label: line.label, cents: line.cents, ...(hiddenSize(line) ? { amount: SIZE_INCLUDED } : {}) })),
       })),
     };
     const list = s.cars.map((c, i) => {
@@ -490,9 +498,9 @@ async function requestLive() {
       list,
       '',
       'SERVICE TOTAL: ' + fmt(totalCents),
-      'DEPOSIT AT CHECKOUT (20%): ' + fmt(depositCents),
-      'BALANCE DUE AFTER DETAIL: ' + fmt(balanceCents),
+      ...(SHOW_DEPOSIT ? ['DEPOSIT AT CHECKOUT (20%): ' + fmt(depositCents), 'BALANCE DUE AFTER DETAIL: ' + fmt(balanceCents)] : []),
       'CHARGED TODAY: $0.00',
+      'Water and electricity: customer will provide accessible water and power at the service location.',
       'Status: Pending confirmation',
       '',
       'Please confirm availability and send payment instructions.',
@@ -525,8 +533,8 @@ async function requestLive() {
             ${vehicleLines}
             <div class="request-price" aria-label="Price breakdown">
               <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
-              <div class="request-deposit"><span>Deposit at checkout <small>20% · after confirmation</small></span><strong>${fmt(depositCents)}</strong></div>
-              <div><span>Remaining balance after detail</span><strong>${fmt(balanceCents)}</strong></div>
+              ${SHOW_DEPOSIT ? `<div class="request-deposit"><span>Deposit at checkout <small>20% · after confirmation</small></span><strong>${fmt(depositCents)}</strong></div>
+              <div><span>Remaining balance after detail</span><strong>${fmt(balanceCents)}</strong></div>` : ''}
               <div class="request-receipt-footer"><span>Charged today</span><b>$0.00</b></div>
             </div>
             <a class="request-receipt-cta" href="${smsLink}">
@@ -537,6 +545,7 @@ async function requestLive() {
         </div>
       </article>
       <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
+      ${utilityNotice()}
       <div class="request-actions">
         <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
         <button id="share-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Share order card</span></button>
@@ -626,7 +635,7 @@ function confirmOrder(paidRef?: string) {
     <div class="passwrap"><article class="pass" style="background-image:linear-gradient(var(--scrim-dark),var(--scrim-dark-strong)),url('${art}')">
       <header><b>DETAIL PASS</b><span>${ref}</span></header><ul class="plist">${list}</ul>
       <p class="pwhen">${icon('calendar', 16)} ${when}</p><p class="pwhen">${icon('pin', 16)} ${esc(address())}</p>
-      <footer><span>Deposit paid ${fmt(o.depositCents)}</span><span>Due after ${fmt(o.balanceCents)}</span></footer></article>
+      <footer>${SHOW_DEPOSIT ? `<span>Deposit paid ${fmt(o.depositCents)}</span><span>Due after ${fmt(o.balanceCents)}</span>` : `<span>Total ${fmt(o.totalCents)}</span>`}</footer></article>
       <div class="side2"><div class="card reward"><em>${icon('gift', 16)} Your reward</em><h3>${REWARD.title}</h3><p class="muted">${REWARD.body}</p></div>
         <div class="card"><em>${icon('phone', 16)} Need to change something?</em><p>Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference ${ref} to move or cancel your detail.</p></div>
         <div class="card"><em>While you wait</em><p>${TIPS[first.shape ?? 'sedan']}</p></div>
