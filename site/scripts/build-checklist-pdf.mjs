@@ -20,8 +20,8 @@ const font = (pkg, file) => readFileSync(join(root, 'node_modules', pkg, 'files'
 const tokens = [...readFileSync(join(root, 'src/styles/tokens.css'), 'utf8').matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => `${m[1]}:${m[2]}`).join(';');
 
 const box = '<span class="box"></span>';
-const rows = (items) => items.map((t) => `<li><span class="task">${esc(t)}</span>${box}${box}</li>`).join('');
-const section = (s) => `<section class="sec"><header><div><h3>${esc(s.title)}</h3><p>${esc(s.note)}</p></div><span class="col">Detailer</span><span class="col">Customer</span></header><ul>${rows(s.items)}</ul></section>`;
+const rows = (items) => items.map((t) => `<li><span class="task">${esc(t)}</span></li>`).join('');
+const section = (s) => `<section class="sec"><header><div><h3>${esc(s.title)}</h3><p>${esc(s.note)}</p></div></header><ul>${rows(s.items)}</ul></section>`;
 const pick = (label) => `<span class="pick">${box}${esc(label)}</span>`;
 const line = (label) => `<div class="field"><span>${label}</span><i></i></div>`;
 
@@ -60,11 +60,10 @@ h1 em{color:var(--gold-hi)}
 .sec header>div{flex:1}
 .sec h3{font-family:'Instrument Serif',serif;font-weight:400;font-size:19pt;line-height:1.05}
 .sec header p{font-size:7.5pt;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);font-weight:700;margin-top:2px}
-.col{width:.78in;text-align:center;font-size:6.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .sec ul{list-style:none}
 .sec li{display:flex;align-items:center;gap:.1in;padding:.048in 0;border-bottom:1px solid var(--line-light)}
 .sec li .task{flex:1;font-weight:500}
-.sec li .box{margin:0 .305in}
+.sec li::before{content:'';width:.075in;height:.075in;border-radius:50%;background:var(--gold);flex:none;margin:0 .04in}
 .legend{margin-top:.1in;font-size:8pt;color:var(--muted)}
 .cond{margin-top:.24in}
 .cond h3{font-family:'Instrument Serif',serif;font-weight:400;font-size:19pt;border-bottom:2px solid var(--black);padding-bottom:.05in}
@@ -72,6 +71,7 @@ h1 em{color:var(--gold-hi)}
 .cond .ln{border-bottom:1px solid var(--line-dark);height:.3in}
 .sign{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.3in}
 .sign .field i{height:.38in}
+.confirm{margin-top:.08in;font-size:8pt;color:var(--muted)}
 .guarantee{margin-top:.28in;padding:.16in .2in;background:var(--black);color:var(--white);border-radius:12px;font-size:9pt}
 .guarantee b{display:block;font-family:'Instrument Serif',serif;font-weight:400;font-style:italic;color:var(--gold-hi);font-size:15pt;margin-bottom:2px}
 .foot{position:absolute;left:.6in;right:.6in;bottom:.32in;display:flex;justify-content:space-between;font-size:7.5pt;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line-light);padding-top:.09in}
@@ -80,12 +80,12 @@ h1 em{color:var(--gold-hi)}
 <div class="page">
   <div class="band"><div class="brand"><b>Mirror Finish</b><span>Mobile Detailing · Montgomery, AL</span></div>
     <h1>Service <em>checklist</em></h1>
-    <p class="lead">One list for both of us. The detailer checks each item as it's finished; the customer checks it again on the walkthrough.</p></div>
+    <p class="lead">One list for both of us: every service we perform on your vehicle, item by item.</p></div>
   <div class="rule"></div>
   <div class="body">
     <div class="fields">${line('Customer')}${line('Vehicle')}${line('Date')}${line('Detailer')}</div>
     <div class="booked"><b>Package</b><div>${packages.map((p) => pick(p.name)).join('')}</div><b>Add-ons</b><div>${extras.map((e) => pick(e.name)).join('')}</div></div>
-    <p class="legend">Deluxe includes everything in both the Interior and Exterior details. Check only the sections that were booked.</p>
+    <p class="legend">Deluxe includes everything in both the Interior and Exterior details. Add-on services are on page 2.</p>
     ${section(interior)}
     ${section(exterior)}
   </div>
@@ -97,6 +97,7 @@ h1 em{color:var(--gold-hi)}
     <div class="cond"><h3>Vehicle condition before service</h3><p>Note existing scratches, dents, stains or items to be careful with. We document the vehicle's condition before service begins.</p>
       <div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
     <div class="sign">${line('Detailer signature / date')}${line('Customer signature / date')}</div>
+    <p class="confirm">Signing confirms the booked services above were completed.</p>
     <div class="guarantee"><b>Our promise</b>${esc(guarantee)}</div>
   </div>
   <div class="foot"><span><b>Mirror Finish</b> · ${esc(SITE.phoneDisplay)} · mirrorfinishmgm.com</span><span>Page 2 of 2</span></div>

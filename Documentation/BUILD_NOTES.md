@@ -166,8 +166,8 @@ database not connected)" into the Square payment note; the build is not saved. O
   now fails the build if `square.site` or `square.link` appears anywhere in `dist`. (When deposits are on, the customer is
   still sent to Square's hosted checkout at runtime; that is a payment page, not a link on the site.)
 - **Service checklist PDF:** `site/public/Mirror-Finish-Service-Checklist.pdf` (2 pages, Letter), one list for customer and
-  detailer: Detailer and Customer check-boxes per task, booked-services boxes, vehicle-condition notes, signature lines
-  and the satisfaction promise from the Service Agreement. Content is `site/src/data/checklist.ts`; the PDF is generated
+  detailer: every service as a plain bulleted list (no tick-box columns, by request), booked-services boxes at the top,
+  vehicle-condition notes, signature lines and the satisfaction promise from the Service Agreement. Content is `site/src/data/checklist.ts`; the PDF is generated
   from it in the site's own tokens and fonts by `npm run checklist` (needs Playwright with Chromium). After changing the
   checklist, the menu or the design, run it and commit the PDF with `src/data/checklist.hash`; `checklist.test.ts` fails if
   they disagree or if a package or add-on has no checklist section. Download buttons: home page (under the packages), the
