@@ -48,7 +48,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
 ---
 <Base
   title="Mobile Car Wash & Detailing in Montgomery, AL | Mirror Finish MGM"
-  description="Mobile car detailing in Montgomery, AL and the River Region. Mirror Finish comes to your home or work: interior and exterior details from $100. See your price and book online, or text 334-652-2601."
+  description="Mobile car detailing in Montgomery, AL and the River Region. Mirror Finish comes to your home or work: interior and exterior details from $50. See your price and book online, or text 334-652-2601."
   schema={[faqSchema]}
 >
   <Header />
@@ -109,6 +109,7 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
             </article>
           ))}
         </div>
+        <p class="reveal" style="text-align:center;margin-top:var(--s6)"><a class="btn btn--ghost" href="/Mirror-Finish-Service-Checklist.pdf" download><Fragment set:html={icon('download', 18)} /><span>Download checklist (PDF)</span></a></p>
       </div>
     </section>
 

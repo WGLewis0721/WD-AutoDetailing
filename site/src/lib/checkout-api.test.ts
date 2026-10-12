@@ -17,7 +17,7 @@ const ENV = { SQUARE_BOOKING_LAUNCH_APPROVED: 'true', SQUARE_ACCESS_TOKEN: 'tok'
   SQUARE_APPOINTMENT_TEAM_MEMBER_ID: 'TEAM' };
 
 /** Fake Square + Supabase. `agreements` are the accepted ids the database knows. */
-function backend({ agreements = [AID], square = { status: 200, body: { payment_link: { id: 'PL1', url: 'https://square.link/u/abc', order_id: 'O1' } } } as { status: number; body: unknown }, dbFail = false } = {}) {
+function backend({ agreements = [AID], square = { status: 200, body: { payment_link: { id: 'PL1', url: 'https://square.link/u/abc', order_id: 'O1' }, related_resources: { orders: [{ total_money: { amount: 1500 } }] } } } as { status: number; body: unknown }, dbFail = false, orderTotal } = {} as { agreements?: string[]; square?: { status: number; body: unknown }; dbFail?: boolean; orderTotal?: number }) {
   const calls: { url: string; init: RequestInit }[] = [];
   const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
     calls.push({ url, init });
@@ -29,6 +29,7 @@ function backend({ agreements = [AID], square = { status: 200, body: { payment_l
     }
     if (url === 'https://db.example/rest/v1/mf_agreements') return new Response(JSON.stringify([{ id: 'new-agreement-id' }]), { status: 201 });
     if (url === 'https://db.example/rest/v1/mf_bookings') return dbFail ? new Response('boom', { status: 500 }) : new Response('', { status: 201 });
+    if (url.includes('/v2/orders/')) return orderTotal === undefined ? new Response('{}', { status: 404 }) : new Response(JSON.stringify({ order: { total_money: { amount: orderTotal } } }), { status: 200 });
     return new Response(JSON.stringify(square.body), { status: square.status });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -124,10 +125,29 @@ describe('checkout function', () => {
     const row = JSON.parse(String(save.init.body));
     expect(row).toMatchObject({
       ref: out.ref, agreement_id: AID, customer_name: 'Jordan Smith', phone: '3345550123', city: 'Montgomery', notes: 'Gate code 4321',
-      appointment_date: '2026-10-10', start_minute: 600, total_cents: 20000, deposit_cents: 4000, balance_cents: 16000,
+      appointment_date: '2026-10-10', start_minute: 600, total_cents: 7500, deposit_cents: 1500, balance_cents: 6000,
       square_payment_link_id: 'PL1', square_order_id: 'O1', square_checkout_url: 'https://square.link/u/abc',
     });
-    expect(row.cars[0]).toMatchObject({ car: 1, vehicle: '2022 Toyota Camry', make: 'Toyota', size: 'sedan', packageId: 'deluxe', extraIds: [], totalCents: 20000 });
+    expect(row.cars[0]).toMatchObject({ car: 1, vehicle: '2022 Toyota Camry', make: 'Toyota', size: 'sedan', packageId: 'deluxe', extraIds: [], totalCents: 7500 });
+  });
+
+  it('refuses a link whose Square total is not exactly the quoted deposit (Square catalog out of date)', async () => {
+    const { calls } = backend({ square: { status: 200, body: { payment_link: { id: 'PL1', url: 'https://square.link/u/abc', order_id: 'O1' }, related_resources: { orders: [{ total_money: { amount: 4000 } }] } } } });
+    const { POST } = await load('create-checkout');
+    const r = await POST(post(order));
+    expect(r.status).toBe(502);
+    expect(await r.text()).not.toContain('square.link');
+    expect(calls.some((c) => c.url === 'https://db.example/rest/v1/mf_bookings')).toBe(false);
+  });
+
+  it('reads the order back when Square does not include its total, and fails closed if it cannot', async () => {
+    const link = { status: 200, body: { payment_link: { id: 'PL1', url: 'https://square.link/u/abc', order_id: 'O1' } } };
+    backend({ square: link, orderTotal: 1500 });
+    expect((await (await load('create-checkout')).POST(post(order))).status).toBe(200);
+    backend({ square: link, orderTotal: 4000 });
+    expect((await (await load('create-checkout')).POST(post(order))).status).toBe(502);
+    backend({ square: link });
+    expect((await (await load('create-checkout')).POST(post(order))).status).toBe(502);
   });
 
   it('does not expose a payable link when booking storage fails', async () => {

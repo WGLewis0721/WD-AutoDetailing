@@ -14,13 +14,14 @@ for (const file of walk(out).filter((f) => f.endsWith('.html'))) {
   const up = depth ? '../'.repeat(depth) : './';
   let html = readFileSync(file, 'utf8');
   html = html
-    .replace(/(href|src|srcset|data-pass-art|poster)="\/(_astro\/|favicon|robots|sitemap)/g, `$1="${up}$2`)
+    .replace(/(href|src|srcset|data-pass-art|poster)="\/(_astro\/|favicon|robots|sitemap|Mirror-Finish-Service-Checklist)/g, `$1="${up}$2`)
     .replace(/(\s)\/_astro\//g, `$1${up}_astro/`)
     .replace(/href="\/book(\/?)(\?[^"]*)?"/g, (_, __, q = '') => `href="${up}book/index.html${q}"`)
     .replace(/href="\/#/g, `href="${up}index.html#`)
     .replace(/href="\/"/g, `href="${up}index.html"`)
     .replaceAll('data-book="/book"', `data-book="${up}book/index.html"`)
-    .replace('data-home="/"', `data-home="${up}index.html"`);
+    .replace('data-home="/"', `data-home="${up}index.html"`)
+    .replace('data-checklist="/', `data-checklist="${up}`);
   writeFileSync(file, html);
 }
 for (const file of walk(out).filter((f) => f.endsWith('.css'))) {

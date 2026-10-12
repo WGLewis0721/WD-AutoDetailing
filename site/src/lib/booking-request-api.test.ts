@@ -39,7 +39,7 @@ describe('on-site appointment requests',()=>{
   const response=await POST(post(order));
   expect(response.status).toBe(200);
   const data=await response.json();
-  expect(data).toMatchObject({confirmed:false,charged:false,totalCents:20000,depositCents:4000,balanceCents:16000});
+  expect(data).toMatchObject({confirmed:false,charged:false,totalCents:7500,depositCents:1500,balanceCents:6000});
   const calendarLink=new URL(data.calendarUrl);
   expect(calendarLink.pathname).toBe('/api/calendar-request');
   expect(calendarLink.searchParams.get('ref')).toBe(data.ref);
@@ -49,7 +49,7 @@ describe('on-site appointment requests',()=>{
   expect(data.ref).toMatch(/^MF-[A-Z0-9]{8}$/);
   const save=calls.find(c=>c.url.endsWith('/rest/v1/mf_bookings'))!;
   const row=JSON.parse(String(save.init.body));
-  expect(row).toMatchObject({status:'request_pending',agreement_id:aid,total_cents:20000,deposit_cents:4000,appointment_date:'2026-10-14',start_minute:600});
+  expect(row).toMatchObject({status:'request_pending',agreement_id:aid,total_cents:7500,deposit_cents:1500,appointment_date:'2026-10-14',start_minute:600});
   expect(calls.some(c=>/\/payments|\/payment-links|\/v2\/bookings$/.test(c.url))).toBe(false);
  });
  it('does not create requests without accepted agreement',async()=>{

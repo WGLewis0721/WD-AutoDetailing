@@ -14,8 +14,11 @@ const charged = (r: ReturnType<typeof buildPaymentLink>) =>
 const lines = (r: ReturnType<typeof buildPaymentLink>) =>
   r.order.line_items.map((l) => ('catalog_object_id' in l ? l.catalog_object_id : `${l.name} ${l.base_price_money.amount}`));
 
-/* The Mirror Finish Square catalog as read on 2026-10-03 (item-variation ID -> price). Square charges these for
-   catalog lines, so the website must quote the same. If prices change in Square, update menu.ts and this table. */
+/* The Mirror Finish Square catalog as last read (item-variation ID -> price). Square charges these for catalog lines.
+   On 2026-10-12 the website prices for the three packages were lowered (Deluxe $75, Exterior $50, Interior $50) while
+   the Square catalog still holds the old ones, listed in WEBSITE_PRICE_ONLY below. That is safe while online deposits
+   are off, and create-checkout refuses any payment link whose Square total is not the quoted deposit. Before deposits
+   are switched back on, change those prices in Square, then update this table and empty WEBSITE_PRICE_ONLY. */
 const SQUARE_CATALOG: Record<string, [string, number]> = {
   FTS5EPOWPWUIMLQC5EP2UIXJ: ['Deluxe Detail', 20000],
   R2RWG6N5PK7ZJENI25APGMLL: ['Exterior Detail', 10000],
@@ -26,10 +29,13 @@ const SQUARE_CATALOG: Record<string, [string, number]> = {
   F6HKSVYUHQXRUIUJWUTXJUX2: ['Headlight Restoration', 5000],
 };
 
+const WEBSITE_PRICE_ONLY = new Set(['FTS5EPOWPWUIMLQC5EP2UIXJ', 'R2RWG6N5PK7ZJENI25APGMLL', '4BKQZYOKRBMH3W5S3RHCY35C']);
+
 describe('menu matches the Square catalog', () => {
   it.each([...packages, ...extras].map((x) => [x.name, x.square, x.cents] as const))('%s', (_, id, cents) => {
     expect(SQUARE_CATALOG[id], `unknown Square variation ${id}`).toBeDefined();
-    expect(cents).toBe(SQUARE_CATALOG[id][1]);
+    if (WEBSITE_PRICE_ONLY.has(id)) expect(cents, 'website price should differ from Square until Square is updated').toBeLessThan(SQUARE_CATALOG[id][1]);
+    else expect(cents).toBe(SQUARE_CATALOG[id][1]);
   });
 });
 
@@ -38,8 +44,8 @@ describe('buildPaymentLink', () => {
     const r = buildPaymentLink(base, opts);
     expect(lines(r)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ']); // Deluxe Detail
     expect(r.order.line_items[0].note).toBe('2022 Toyota Camry');
-    expect(charged(r)).toBe(4000); // $200 Deluxe, sedan size, 20% deposit
-    expect(r.order.discounts[0].amount_money.amount).toBe(16000);
+    expect(charged(r)).toBe(1500); // $75 Deluxe, sedan size, 20% deposit
+    expect(r.order.discounts[0].amount_money.amount).toBe(6000);
     expect(r.checkout_options.redirect_url).toBe('https://example.com/site/book/?paid=MF-TEST01');
     expect(r.pre_populated_data.buyer_phone_number).toBe('+13345550123');
   });
@@ -47,7 +53,7 @@ describe('buildPaymentLink', () => {
   it('sizes each car from its make and model, not from the browser', () => {
     const r = buildPaymentLink({ ...base, cars: [{ year: '2021', make: 'Chevrolet', model: 'Suburban', packageId: 'deluxe', extraIds: ['headlight'] }] }, opts);
     expect(lines(r)).toEqual(['FTS5EPOWPWUIMLQC5EP2UIXJ', 'Vehicle size: Van / 3-Row SUV / HD Truck 6000', 'F6HKSVYUHQXRUIUJWUTXJUX2']);
-    expect(charged(r)).toBe(6200); // 20% of $200 + $60 + $50
+    expect(charged(r)).toBe(3700); // 20% of $75 + $60 + $50
   });
 
   it('itemises every car in a multi-car order and rounds the deposit once', () => {
@@ -56,7 +62,7 @@ describe('buildPaymentLink', () => {
       { bodyStyle: 'truck', packageId: 'interior', extraIds: ['pet-hair', 'deep-treatment'] },
     ] }, opts);
     expect(r.order.line_items.every((l) => /^Car [12]: /.test(l.note ?? ''))).toBe(true);
-    const total = 10000 + 4000 + 10000 + 4000 + 7500 + 7500; // ext + decon + int + standard truck + 2 extras
+    const total = 5000 + 4000 + 5000 + 4000 + 7500 + 7500; // ext + decon + int + standard truck + 2 extras
     expect(charged(r)).toBe(Math.round(total * 0.2));
     expect(r.order.metadata.vehicles).toContain('Honda Civic');
   });

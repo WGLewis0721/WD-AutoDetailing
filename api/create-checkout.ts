@@ -28,6 +28,20 @@ const newRef = () => 'MF-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8).t
 
 export const OPTIONS = preflight;
 
+/** The order total Square computed for a new payment link: from the response, else by reading the order back. */
+async function orderTotal(data: { payment_link: { order_id?: string }; related_resources?: { orders?: { total_money?: { amount?: number } }[] } }): Promise<number | undefined> {
+  const inline = data.related_resources?.orders?.[0]?.total_money?.amount;
+  if (typeof inline === 'number') return inline;
+  if (!data.payment_link.order_id) return undefined;
+  try {
+    const res = await fetch(`${SQUARE_API}/v2/orders/${encodeURIComponent(data.payment_link.order_id)}`, {
+      headers: { Authorization: `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`, 'Square-Version': SQUARE_VERSION },
+    });
+    const body = await res.json().catch(() => ({}));
+    return res.ok && typeof body.order?.total_money?.amount === 'number' ? body.order.total_money.amount : undefined;
+  } catch { return undefined; }
+}
+
 export async function POST(req: Request) {
   const origin = req.headers.get('origin');
   if (foreignOrigin(req)) return json(403, { error: 'Origin not allowed' }, origin);
@@ -99,6 +113,14 @@ export async function POST(req: Request) {
     return json(502, { error: 'Payment system error' }, origin);
   }
   log('payment_link_created', { ref, order_id: data.payment_link.order_id });
+
+  // Square prices catalog lines itself, so its catalog could drift from the website's prices. Never hand out a link
+  // unless the order total Square computed is exactly the deposit we quoted.
+  const squareTotal = await orderTotal(data);
+  if (squareTotal !== charged) {
+    log('square_price_mismatch', { ref, expected_cents: charged, square_cents: squareTotal ?? null });
+    return json(502, { error: 'Payment system error' }, origin);
+  }
 
   // Save the booking before exposing a payable link. Fail closed if storage is unavailable.
   const q = priceOrder(order);

@@ -83,6 +83,8 @@ if (preCity && (SITE.serviceArea as readonly string[]).includes(preCity)) s.city
 const demo = params.get('demo');
 
 const HOME = document.getElementById('app')?.dataset.home ?? '/';
+const CHECKLIST = document.getElementById('app')?.dataset.checklist ?? '/Mirror-Finish-Service-Checklist.pdf';
+const checklistLink = () => `<a class="btn btn--ghost" href="${CHECKLIST}" download>${icon('download', 18)}<span>Download checklist (PDF)</span></a>`;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } };
@@ -249,7 +251,7 @@ function panelWhen(): string {
     } else if (preferenceOnly) {
       slotsHtml = '<p class="note">Choose your preferred time. Multi-vehicle and add-on availability will be confirmed personally before any deposit is requested.</p>' + grp('Preferred morning', all.filter((x) => x.startMin < 720)) + grp('Preferred afternoon', all.filter((x) => x.startMin >= 720));
     } else if (LIVE && availability?.loading) {
-      slotsHtml = '<p class="muted hint" role="status">Checking Square for available appointments…</p>';
+      slotsHtml = '<p class="muted hint" role="status">Checking available appointment times…</p>';
     } else if (LIVE && availability?.error) {
       slotsHtml = '<p class="errsum" role="alert">' + esc(availability.error) + ' ' + textUs('Text us') + '.</p>';
     } else if (LIVE && !availability) {
@@ -279,7 +281,7 @@ function panelDetails(): string {
   return `<h2 tabindex="-1">Where and <em>who?</em></h2><p class="muted">We use this to confirm your booking and find you.</p>
     ${errs.length ? `<div class="errsum" role="alert"><b>Please fix ${errs.length} ${errs.length > 1 ? 'fields' : 'field'}:</b> ${errs.join(' · ')}</div>` : ''}
     <div class="card box"><p class="boxt">You</p>${field('name', 'Full name', 'text', 'name', s.name)}${field('phone', 'Mobile phone', 'tel', 'tel', s.phone, 'inputmode="tel" placeholder="(334) 555-0123"')}
-    ${field('email', 'Email (Square sends your confirmation here)', 'email', 'email', s.email, 'inputmode="email"')}</div>
+    ${field('email', 'Email (your confirmation is sent here)', 'email', 'email', s.email, 'inputmode="email"')}</div>
     <div class="card box"><p class="boxt">Where we are coming</p>${field('street', 'Street address', 'text', 'address-line1', s.street)}
     <div class="duo"><div class="field"><label for="city2">Town</label><select id="city2" autocomplete="address-level2" ${describe('city2')}>${cityOptions(s.city, false)}</select><span class="err" id="e-city2">${errors.city2 ?? ''}</span></div>
     ${field('zip', 'ZIP code', 'text', 'postal-code', s.zip, 'inputmode="numeric" maxlength="5"')}</div>
@@ -538,6 +540,7 @@ async function requestLive() {
       <div class="request-actions">
         <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
         <button id="share-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Share order card</span></button>
+        ${checklistLink()}
       </div>
       <p id="order-card-export-status" class="request-export-status" role="status" aria-live="polite"></p>
       <p><a class="link" href="${HOME}">Back to the home page</a></p>
@@ -619,7 +622,7 @@ function confirmOrder(paidRef?: string) {
   const ics = icsFile();
   /* TODO: client to supply the cancellation and reschedule policy. Until then the page only says how to reach us. */
   $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1>
-    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. Square ${paidRef ? 'is emailing your deposit receipt' : 'will send your confirmation'} to ${esc(s.email)}.</p>
+    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. ${paidRef ? 'Square is emailing your deposit receipt' : 'We will send your confirmation'} to ${esc(s.email)}.</p>
     <div class="passwrap"><article class="pass" style="background-image:linear-gradient(var(--scrim-dark),var(--scrim-dark-strong)),url('${art}')">
       <header><b>DETAIL PASS</b><span>${ref}</span></header><ul class="plist">${list}</ul>
       <p class="pwhen">${icon('calendar', 16)} ${when}</p><p class="pwhen">${icon('pin', 16)} ${esc(address())}</p>
@@ -627,7 +630,7 @@ function confirmOrder(paidRef?: string) {
       <div class="side2"><div class="card reward"><em>${icon('gift', 16)} Your reward</em><h3>${REWARD.title}</h3><p class="muted">${REWARD.body}</p></div>
         <div class="card"><em>${icon('phone', 16)} Need to change something?</em><p>Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference ${ref} to move or cancel your detail.</p></div>
         <div class="card"><em>While you wait</em><p>${TIPS[first.shape ?? 'sedan']}</p></div>
-        <div class="row"><button class="btn" id="cal" type="button"><span>Add to calendar</span>${icon('calendar', 18)}</button><button class="btn btn--ghost" id="share" type="button">Share my build</button></div></div></div>
+        <div class="row"><button class="btn" id="cal" type="button"><span>Add to calendar</span>${icon('calendar', 18)}</button><button class="btn btn--ghost" id="share" type="button">Share my build</button>${checklistLink()}</div></div></div>
     <h2 class="alt">Keep <em>exploring</em></h2><div class="alts2"><a class="card" href="${HOME}#gallery"><b>See recent work</b><span class="muted">Real jobs from around Montgomery.</span></a><a class="card" href="${SITE.phoneSms}"><b>Text us a question</b><span class="muted">${SITE.phoneDisplay}</span></a><a class="card" href="${SITE.instagramUrl}"><b>Follow on Instagram</b><span class="muted">@mfmd_mgm</span></a><a class="card" href="${HOME}"><b>Back to the home page</b><span class="muted">Packages, areas and more.</span></a></div></section>`;
   $('cal').addEventListener('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'mirror-finish-detail.ics'; a.click(); });
   $('share').addEventListener('click', async () => { const url = `${location.origin}${location.pathname}`; try { if (navigator.share) await navigator.share({ title: SITE.name, text: `My detail with ${SITE.name}`, url }); else { await navigator.clipboard.writeText(url); $('share').textContent = 'Link copied'; } } catch { /* cancelled */ } });

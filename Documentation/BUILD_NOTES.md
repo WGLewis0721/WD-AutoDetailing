@@ -151,3 +151,24 @@ Until `SUPABASE_SECRET_KEY` is set in Vercel, `/api/agreement` answers 503 and t
 Checkout accepts `local` only while the database is unconfigured and writes "Agreed: v1.0.0 at <time> (not recorded:
 database not connected)" into the Square payment note; the build is not saved. Once the key is set, recording and the
 428 enforcement switch on with no redeploy, and anyone holding a `local` acceptance is shown the agreement again.
+
+## Round 9: new prices, no Square website links, service checklist PDF (2026-10-12)
+
+- **Prices on the site:** Deluxe $75, Exterior $50, Interior $50 (`site/src/data/menu.ts`; deposits, quotes, the receipt and
+  the search-engine offers all derive from it). **Square's catalog still has the old prices ($200 / $100 / $100)**, listed
+  in `WEBSITE_PRICE_ONLY` in `checkout.test.ts`. That is safe while online deposits are off, and `api/create-checkout.ts`
+  now refuses to hand out a payment link unless the order total Square computed equals the quoted deposit (it reads the
+  total from Square's response, or the order if absent). Before switching deposits back on, change those three prices in
+  Square, update the table in the test and empty `WEBSITE_PRICE_ONLY`.
+- **Interior Deep Treatment** now includes the headliner (add-on text and checklist). The listed time (45 minutes) is unchanged.
+- **No links to the Square website:** the only one was `SITE.bookingUrl` in the page's search-engine metadata (`sameAs`);
+  removed. Copy that named Square where Square is not involved was reworded. The CI step "Book buttons and contact links"
+  now fails the build if `square.site` or `square.link` appears anywhere in `dist`. (When deposits are on, the customer is
+  still sent to Square's hosted checkout at runtime; that is a payment page, not a link on the site.)
+- **Service checklist PDF:** `site/public/Mirror-Finish-Service-Checklist.pdf` (2 pages, Letter), one list for customer and
+  detailer: Detailer and Customer check-boxes per task, booked-services boxes, vehicle-condition notes, signature lines
+  and the satisfaction promise from the Service Agreement. Content is `site/src/data/checklist.ts`; the PDF is generated
+  from it in the site's own tokens and fonts by `npm run checklist` (needs Playwright with Chromium). After changing the
+  checklist, the menu or the design, run it and commit the PDF with `src/data/checklist.hash`; `checklist.test.ts` fails if
+  they disagree or if a package or add-on has no checklist section. Download buttons: home page (under the packages), the
+  "request received" screen and the Detail Pass.

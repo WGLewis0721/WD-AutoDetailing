@@ -303,7 +303,7 @@ body.gated { overflow: hidden; }
   color: var(--muted-on-dark); font: 500 .72rem/1.5 var(--font); }
 .request-actions { width: min(100%, 720px); margin-inline: auto; display: flex;
   flex-wrap: wrap; align-items: center; gap: var(--s3); }
-.request-actions button { flex: 1 1 220px; justify-content: center; }
+.request-actions button, .request-actions .btn { flex: 1 1 250px; justify-content: center; }
 .request-actions button:disabled { opacity: .65; cursor: progress; }
 .request-export-status { min-height: 1.3em; margin: var(--s3) auto; width: min(100%, 720px);
   color: var(--muted); font-size: var(--fs-sm); }

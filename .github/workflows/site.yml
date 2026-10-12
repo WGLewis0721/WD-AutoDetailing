@@ -45,6 +45,8 @@ jobs:
           grep -q 'href="/book' dist/index.html
           grep -q 'tel:+13346522601' dist/index.html
           ! grep -qi 'localhost' dist/index.html
+          # Customers are never sent to the Square website from a page or from search-engine metadata.
+          ! grep -rqiE 'square\.(site|link)' dist
       - name: Make a copy that works from any URL path
         run: node scripts/make-relative.mjs dist-relative
       - uses: actions/upload-pages-artifact@v3

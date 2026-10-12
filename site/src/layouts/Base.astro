@@ -25,7 +25,7 @@ const business = {
   currenciesAccepted: 'USD',
   address: { '@type': 'PostalAddress', addressLocality: 'Montgomery', addressRegion: SITE.region, addressCountry: 'US' },
   areaServed: SITE.serviceArea.map((c) => ({ '@type': 'City', name: c, containedInPlace: { '@type': 'State', name: 'Alabama' } })),
-  sameAs: [SITE.instagramUrl, SITE.bookingUrl],
+  sameAs: [SITE.instagramUrl],
   potentialAction: { '@type': 'ReserveAction', target: abs('book/'), name: 'Book a mobile detail' },
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
