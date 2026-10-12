@@ -12,7 +12,7 @@ export const packageSections: ChecklistSection[] = [
     id: 'interior', title: 'Interior detail', note: 'Interior package · included in Deluxe',
     items: [
       'Vacuum interior carpets and seats',
-      'Shampoo upholstery',
+      'Light upholstery clean',
       'Clean all hard surfaces and interior plastics',
       'Clean leather',
       'Condition interior plastics and leather',
@@ -35,15 +35,26 @@ export const packageSections: ChecklistSection[] = [
   },
 ];
 
-/** Keyed by the add-on ids in menu.ts. */
+/** One section per entry on the add-on menu, keyed by the add-on or combo id in menu.ts. A combo lists each of its items. */
 export const addonSections: ChecklistSection[] = [
   {
-    id: 'deep-treatment', title: 'Interior Deep Treatment', note: 'Add-on',
-    items: ['Sanitize and deep clean seats, carpets and surfaces', 'Clean the headliner'],
+    id: 'stain-removal', title: 'Stain Removal Treatment', note: 'Add-on · all three areas or any one',
+    items: [
+      'Headliner: lift stains and marks',
+      'Upholstery: lift stains from seats and fabric',
+      'Carpet: lift stains from carpets and floor mats',
+    ],
   },
   {
-    id: 'pet-hair', title: 'Pet Hair and Stain Removal', note: 'Add-on',
-    items: ['Remove pet hair from every nook and cranny', 'Lift stains from seats and carpets'],
+    id: 'refresh-interior', title: 'Refresh Interior Treatment', note: 'Add-on · both services or either one',
+    items: [
+      'Steam cleaning: sanitize and refresh interior surfaces',
+      'Upholstery cleaning: deep clean seats and fabric, seat by seat',
+    ],
+  },
+  {
+    id: 'pet-hair', title: 'Pet Hair Removal', note: 'Add-on',
+    items: ['Remove pet hair from every nook and cranny'],
   },
   {
     id: 'decon', title: 'Paint and Glass Decontamination', note: 'Add-on',

@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 import QRCode from 'qrcode';
-import { extras, packages } from '../src/data/menu.ts';
+import { addonGroups, extras, packages, optionsOf } from '../src/data/menu.ts';
 import { SITE } from '../src/data/site.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -17,8 +17,12 @@ mkdirSync(OUT, { recursive: true });
 
 const DOMAIN = 'mirrorfinishmgm.com';
 const money = (cents) => '$' + cents / 100;
-const price = (id) => money([...packages, ...extras].find((x) => x.id === id).cents);
-const name = (id) => [...packages, ...extras].find((x) => x.id === id).name;
+const catalog = [...packages, ...extras, ...addonGroups];
+const price = (id) => money(catalog.find((x) => x.id === id).cents);
+const name = (id) => catalog.find((x) => x.id === id).name;
+/** A combo is advertised from the cheapest single item in it; everything else at its price. */
+const fromCents = (id) => Math.min(...optionsOf(addonGroups.find((x) => x.id === id)).map((o) => o.cents));
+const fromPrice = (id) => (addonGroups.some((x) => x.id === id) ? 'from ' + money(fromCents(id)) : price(id));
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const font = (pkg, file) => readFileSync(join(root, 'node_modules', pkg, 'files', file)).toString('base64');
@@ -38,7 +42,7 @@ const qr = (url) => QRCode.toString(url, { type: 'svg', margin: 4, errorCorrecti
 const check = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 /* ---- the three audiences -------------------------------------------------------------------------------------- */
-const rideshareAddons = ['pet-hair', 'deep-treatment'];
+const rideshareAddons = ['stain-removal', 'refresh-interior', 'pet-hair'];
 const ads = [
   {
     id: 'property-managers', utm: 'property-managers', audience: 'For property managers',
@@ -53,7 +57,7 @@ const ads = [
       'Happy to work within your community’s rules.',
     ],
     steps: ['Share the link or this flyer with residents.', 'Residents build their detail and pick a time.', 'We detail the car at their spot. They pay when it’s done.'],
-    addons: ['pet-hair', 'deep-treatment', 'decon', 'headlight'], cta: 'Book a pilot day',
+    addons: ['stain-removal', 'refresh-interior', 'pet-hair', 'decon', 'headlight'], cta: 'Book a pilot day',
     needs: 'Needs access to water and electricity at each car.',
   },
   {
@@ -65,11 +69,11 @@ const ads = [
     points: [
       'We come to your lot: no transport, no waiting on a shop.',
       'A freshly detailed car shows and photographs better.',
-      'Extras for tougher units: pet hair and stains, paint and glass decontamination, headlights.',
+      'Extras for tougher units: stain removal, steam cleaning, pet hair, paint and glass decontamination, headlights.',
       '24-hour satisfaction guarantee.',
     ],
     steps: ['Pick the cars and a day.', 'We detail them where they sit.', 'Payment is due when the service is complete.'],
-    addons: ['pet-hair', 'deep-treatment', 'decon', 'headlight'], cta: 'Try one car',
+    addons: ['stain-removal', 'refresh-interior', 'pet-hair', 'decon', 'headlight'], cta: 'Try one car',
     needs: 'Needs access to water and power on your lot.',
   },
   {
@@ -79,10 +83,10 @@ const ads = [
     chips: [`Interior detail ${price('interior')}`, 'About an hour', 'We come to you'],
     hero: 'ig_06.jpg', heroPos: 'center 55%', strip: ['ig_12.jpg', 'ig_16.jpg', 'ig_08.jpg'], highlight: 'interior',
     points: [
-      'Seats and carpets vacuumed, upholstery shampooed.',
+      'Seats and carpets vacuumed, upholstery cleaned.',
       'Hard surfaces, plastics and leather cleaned and conditioned.',
       'Door and trunk jambs deep cleaned, odors reduced.',
-      `Pet hair, stains or smells? Add-ons from ${price('pet-hair')}.`,
+      `Pet hair, stains or smells? Stain removal from ${money(fromCents('stain-removal'))}, steam cleaning and more.`,
     ],
     steps: ['Book online or text us.', 'We come to your driveway or parking spot.', 'You pay when it’s done.'],
     addons: rideshareAddons, cta: 'Book an interior',
@@ -206,7 +210,7 @@ const flyerHtml = async (ad, lg) => {
   <div class="body"><ul class="points">${ad.points.map((p) => `<li>${check}<span>${esc(p)}</span></li>`).join('')}</ul>
     <p class="strip-l">Recent work around Montgomery</p><div class="strip" style="margin-top:8px">${strip}</div>
     <div class="prices">${card('interior', mins('interior'))}${card('exterior', mins('exterior'))}${card('deluxe', 'inside + out · ' + mins('deluxe'))}</div>
-    <p class="addons"><b>Add-ons:</b> ${ad.addons.map((id) => `${name(id)} ${price(id)}`).join(' · ')}</p></div>
+    <p class="addons"><b>Add-ons:</b> ${ad.addons.map((id) => `${name(id)} ${fromPrice(id)}`).join(' · ')}</p></div>
   <div class="foot"><div class="rule2"></div><div class="steps"><h4>How it works</h4><ol>${ad.steps.map((s, i) => `<li><i>${i + 1}</i><span>${esc(s)}</span></li>`).join('')}</ol><p class="needs">${esc(ad.needs)}</p></div>
     <div class="qcol"><h4>Scan</h4><div class="q">${await qr(url)}</div><span class="scan">Prices &amp; booking</span></div>
     <div class="go"><h4>${esc(ad.cta)}</h4><span class="cta">Text or call</span><span class="tel">${phone}</span><span class="web">${DOMAIN}</span></div>

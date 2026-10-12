@@ -1,7 +1,7 @@
-import { extras, packages, sizes, type SizeId } from '../data/menu';
+import { addonGroups, addonMenu, groupSavings, optionsOf, packages, sizes, type Extra, type SizeId } from '../data/menu';
 import { SITE } from '../data/site';
 import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from './vehicles';
-import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
+import { MAX_CARS, fmt, priceExtras, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
 import { SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, lineAmount } from './display';
@@ -233,13 +233,30 @@ function panelBuild(): string {
   const c = car();
   const pk = packages.map((p) => `<button type="button" class="opt ${c.packageId === p.id ? 'on' : ''}" role="radio" aria-checked="${c.packageId === p.id}" data-pkg="${p.id}">
       ${p.badge ? `<em>${p.badge}</em>` : ''}<span class="oi">${icon(PKG_ICON[p.id], 22)}</span><strong>${p.name}</strong><span class="amt">${fmt(p.cents)}</span><small>${p.features.join(' &middot; ')}</small><span class="tick">${icon('check', 16)}</span></button>`).join('');
-  const ex = extras.map((e, i) => `<button type="button" class="opt ${c.extraIds.includes(e.id) ? 'on' : ''}" aria-pressed="${c.extraIds.includes(e.id)}" data-extra="${e.id}">
-      <span class="oi">${icon(EXTRA_ICON[i % 4], 22)}</span><strong>${e.name}</strong><span class="amt">+${fmt(e.cents)}</span><small>${e.blurb}</small><span class="tick">${icon('check', 16)}</span></button>`).join('');
+  const ex = addonMenu.map((entry, i) => entry.kind === 'group' ? comboCard(c, entry.group.id) : singleAddon(c, entry.extra, i)).join('');
   const canCopy = s.active > 0 && s.cars[0].packageId;
   return `<h2 tabindex="-1">Build your <em>detail</em></h2><p class="muted">Choose a package and add-ons for each car.</p>${fleet()}
     <div class="rowhead"><h3 class="sub">Package for Car ${s.active + 1}</h3>${canCopy ? `<button type="button" class="link" data-copy>Same build as Car 1</button>` : ''}</div>
     <div class="grid3" role="radiogroup" aria-label="Package">${pk}</div>
-    <h3 class="sub">Add to it</h3><div class="grid2">${ex}</div>`;
+    <h3 class="sub">Add to it</h3><div class="grid2 addons">${ex}</div>`;
+}
+
+const singleAddon = (c: Car, e: Extra, i: number) => `<button type="button" class="opt ${c.extraIds.includes(e.id) ? 'on' : ''}" aria-pressed="${c.extraIds.includes(e.id)}" data-extra="${e.id}">
+      <span class="oi">${icon(EXTRA_ICON[i % 4], 22)}</span><strong>${e.name}</strong><span class="amt">+${fmt(e.cents)}</span><small>${e.blurb}</small><span class="tick">${icon('check', 16)}</span></button>`;
+
+/** A combo and its items, like toppings on a pizza: tap the combo for all of them at the combo price, or tap just the ones you want.
+ * Tapping every item is the same as tapping the combo, and the price follows. */
+function comboCard(c: Car, groupId: string): string {
+  const g = addonGroups.find((x) => x.id === groupId)!;
+  const items = optionsOf(g);
+  const have = items.filter((o) => c.extraIds.includes(o.id)).length;
+  const all = have === items.length;
+  const state = all ? 'on' : have ? 'part' : '';
+  const hint = have && !all ? `<span class="cnt" role="status">${have} of ${items.length} chosen. Choose all ${items.length} and save ${fmt(groupSavings(g))}.</span>` : '';
+  const picks = items.map((o) => { const on = c.extraIds.includes(o.id); return `<button type="button" class="top ${on ? 'on' : ''}" aria-pressed="${on}" data-extra="${o.id}"><span class="cb">${icon('check', 14)}</span><b>${o.short ?? o.name}</b><i>+${fmt(o.cents)}</i></button>`; }).join('');
+  return `<div class="combo ${state}"><button type="button" class="opt opt--combo ${all ? 'on' : state}" aria-pressed="${all ? 'true' : have ? 'mixed' : 'false'}" data-group="${g.id}">
+      <em>Save ${fmt(groupSavings(g))}</em><span class="oi">${icon('sparkle', 22)}</span><strong>${g.name}</strong><span class="amt">${fmt(g.cents)}<span class="per"> all ${items.length}</span></span><small>${g.blurb}</small>${hint}<span class="tick">${icon('check', 16)}</span></button>
+    <div class="toppings" role="group" aria-label="${g.name}: choose just what you need"><p class="topl">Or choose just what you need</p><div class="topg">${picks}</div></div></div>`;
 }
 
 const hours = (m: number) => `${Math.round((m / 60) * 10) / 10} hr`;
@@ -339,7 +356,7 @@ function panelReview(): string {
   const o = order();
   const rows = s.cars.map((c, i) => {
     const p = packages.find((x) => x.id === c.packageId);
-    const ex = c.extraIds.map((id) => esc(extras.find((e) => e.id === id)?.name ?? '')).join(', ');
+    const ex = priceExtras(c.extraIds).map((e) => esc(e.label)).join(', ');
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
   const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The payment did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
@@ -518,7 +535,7 @@ async function requestLive() {
     };
     const list = s.cars.map((c, i) => {
       const p = packages.find(p => p.id === c.packageId);
-      const extrasText = c.extraIds.map(id => extras.find(e => e.id === id)?.name).filter(Boolean);
+      const extrasText = priceExtras(c.extraIds).map(e => e.label);
       return `Vehicle ${i + 1}: ${carLabel(c)}\nService: ${p?.name || 'Detail'}\nAdd-ons: ${extrasText.length ? extrasText.join(', ') : 'None'}`;
     }).join('\n\n');
     const calendarUrl = typeof data.calendarUrl === 'string' && data.calendarUrl.startsWith('https://')
@@ -659,7 +676,7 @@ function confirmOrder(paidRef?: string) {
   const ref = paidRef ?? 'MF-' + Math.random().toString(36).slice(2, 8).toUpperCase();
   const when = new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + ' at ' + hourLabel(s.startMin);
   const art = $('app').dataset.passArt ?? '';
-  const list = s.cars.map((c) => { const p = packages.find((x) => x.id === c.packageId)!; return `<li><b>${esc(carLabel(c))}</b><span>${p.name}${c.extraIds.length ? ' + ' + c.extraIds.length + ' add-on' + (c.extraIds.length > 1 ? 's' : '') : ''}</span></li>`; }).join('');
+  const list = s.cars.map((c) => { const p = packages.find((x) => x.id === c.packageId)!; return `<li><b>${esc(carLabel(c))}</b><span>${p.name}${priceExtras(c.extraIds).length ? ' + ' + priceExtras(c.extraIds).length + ' add-on' + (priceExtras(c.extraIds).length > 1 ? 's' : '') : ''}</span></li>`; }).join('');
   const first = s.cars[0];
   const ics = icsFile();
   /* TODO: client to supply the cancellation and reschedule policy. Until then the page only says how to reach us. */
@@ -697,6 +714,12 @@ function bind() {
     else if (d.addcar !== undefined) { if (s.cars.length < MAX_CARS) { s.cars.push(newCar()); s.active = s.cars.length - 1; s.date = ''; s.startMin = -1; s.step = 1; render(true); } }
     else if (d.copy !== undefined) { const f = s.cars[0]; c.packageId = f.packageId; c.extraIds = [...f.extraIds]; render(); }
     else if (d.pkg) { c.packageId = d.pkg; s.date = ''; s.startMin = -1; availability = null; render(); }
+    else if (d.group) {
+      const g = addonGroups.find((x) => x.id === d.group)!;
+      const whole = g.optionIds.every((id) => c.extraIds.includes(id));
+      c.extraIds = whole ? c.extraIds.filter((x) => !g.optionIds.includes(x)) : [...c.extraIds, ...g.optionIds.filter((id) => !c.extraIds.includes(id))];
+      s.date = ''; s.startMin = -1; availability = null; render();
+    }
     else if (d.extra) { c.extraIds = c.extraIds.includes(d.extra) ? c.extraIds.filter((x) => x !== d.extra) : [...c.extraIds, d.extra]; s.date = ''; s.startMin = -1; availability = null; render(); }
     else if (d.style) { const b = bodyStyles.find((x) => x.id === d.style)!; c.manualStyle = b.id; c.shape = b.shape; c.size = b.size; c.mesh = b.model; render(); }
     else if (d.date) { s.date = d.date; s.startMin = -1; slotLost = false; render(); }

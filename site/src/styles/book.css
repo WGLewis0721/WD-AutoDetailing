@@ -35,7 +35,7 @@
 .trio { display: grid; gap: 0 var(--s3); }
 .chips, .grid2, .grid3 { display: grid; gap: var(--s3); }
 .chips { grid-template-columns: repeat(2, 1fr); }
-.pick, .opt, .slot, .day, .chipbtn { font: inherit; cursor: pointer; border: 1.5px solid var(--line-light); background: var(--white); color: var(--black); border-radius: var(--radius); transition: border-color var(--t) var(--ease), background var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t) var(--ease); }
+.pick, .opt, .top, .slot, .day, .chipbtn { font: inherit; cursor: pointer; border: 1.5px solid var(--line-light); background: var(--white); color: var(--black); border-radius: var(--radius); transition: border-color var(--t) var(--ease), background var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t) var(--ease); }
 .pick { min-height: var(--tap); padding: var(--s3); font-weight: 600; }
 .opt { display: grid; gap: var(--s1); text-align: left; padding: var(--s5) var(--s4) var(--s4); position: relative; border-radius: var(--radius-lg); }
 .oi { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--ivory); color: var(--gold-deep); margin-bottom: var(--s2); }
@@ -45,9 +45,24 @@
 .opt em { position: absolute; top: calc(var(--s3) * -1); right: var(--s4); background: var(--gold); color: var(--black); font: 700 var(--fs-xs) var(--font); letter-spacing: .08em; text-transform: uppercase; padding: var(--s1) var(--s3); border-radius: var(--radius-pill); font-style: normal; }
 .tick { position: absolute; top: var(--s4); right: var(--s4); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--black); color: var(--gold-hi); transform: scale(0); transition: transform .25s var(--ease); }
 .opt.on .tick { transform: scale(1); }
-.pick:hover, .opt:hover, .slot:hover:not(:disabled), .day:hover:not(:disabled), .chipbtn:hover { border-color: var(--black); }
+.pick:hover, .opt:hover, .top:hover, .slot:hover:not(:disabled), .day:hover:not(:disabled), .chipbtn:hover { border-color: var(--black); }
 .opt:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-.pick.on, .opt.on, .slot.on, .day.on, .chipbtn.on { border-color: var(--black); background: var(--ivory); box-shadow: inset 0 0 0 1px var(--black), 0 0 0 3px var(--gold); }
+.pick.on, .opt.on, .top.on, .slot.on, .day.on, .chipbtn.on { border-color: var(--black); background: var(--ivory); box-shadow: inset 0 0 0 1px var(--black), 0 0 0 3px var(--gold); }
+/* Add-on combos: the combo card on top, its individual items underneath like toppings. */
+.addons .combo { grid-column: 1 / -1; display: grid; gap: var(--s3); margin-top: var(--s4); }
+.opt--combo { padding-right: var(--s8); }
+.opt--combo .amt .per { font: 600 var(--fs-sm) var(--font); color: var(--muted); letter-spacing: 0; }
+.opt--combo.part { border-color: var(--black); background: var(--ivory); }
+.opt--combo .cnt { font-size: var(--fs-sm); font-weight: 600; color: var(--gold-deep); }
+.toppings { display: grid; gap: var(--s2); padding-left: var(--s5); border-left: 3px solid var(--gold); }
+.topl { margin: 0; font: 700 var(--fs-xs) var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.topg { display: grid; gap: var(--s2); grid-template-columns: 1fr; }
+@media (min-width: 640px) { .topg { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); } }
+.top { display: flex; align-items: center; gap: var(--s2); min-height: var(--tap); padding: var(--s2) var(--s3); text-align: left; font-size: var(--fs-sm); }
+.top b { font-weight: 600; flex: 1; min-width: 0; }
+.top i { font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+.top .cb { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--line-dark); background: var(--white); color: transparent; flex: none; transition: background var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease); }
+.top.on .cb { background: var(--black); border-color: var(--black); color: var(--gold-hi); }
 .link { background: none; border: 0; padding: var(--s3) 0; font: 600 var(--fs-sm) var(--font); text-decoration: underline; text-decoration-color: var(--gold); text-underline-offset: 4px; cursor: pointer; color: var(--black); }
 .found { display: flex; align-items: baseline; gap: var(--s3); margin-top: var(--s4); padding: var(--s4); border-left: 3px solid var(--gold); border-radius: var(--radius); background: var(--ivory); animation: rise .4s var(--ease); }
 .found span { color: var(--muted); font-size: var(--fs-sm); }

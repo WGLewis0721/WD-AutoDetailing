@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { checklist, checklistFingerprint } from '../src/data/checklist.ts';
-import { extras, packages } from '../src/data/menu.ts';
+import { addonMenu, packages } from '../src/data/menu.ts';
 import { SITE } from '../src/data/site.ts';
 import { AGREEMENT } from '../src/data/agreement.ts';
 
@@ -25,6 +25,12 @@ const rows = (items) => items.map((t) => `<li><span class="task">${esc(t)}</span
 const section = (s) => `<section class="sec"><header><div><h3>${esc(s.title)}</h3><p>${esc(s.note)}</p></div></header><ul>${rows(s.items)}</ul></section>`;
 const pick = (label, id) => `<span class="pick">${box(id)}${esc(label)}</span>`;
 const line = (label, id) => `<div class="field"><span>${label}</span><i${id ? ` data-field="${id}"` : ''}></i></div>`;
+
+/** The add-ons the customer can choose, grouped as on the booking page: each combo with its own items, then the single add-ons. */
+const addonRows = [
+  ...addonMenu.filter((m) => m.kind === 'group').map((m) => [m.group.name.replace(/ Treatment$/, ''), m.options.map((o) => pick(o.short ?? o.name, o.id)).join('')]),
+  ['Other add-ons', addonMenu.filter((m) => m.kind === 'single').map((m) => pick(m.extra.name, m.extra.id)).join('')],
+].map(([label, picks]) => `<b>${esc(label)}</b><div class="picks">${picks}</div>`).join('');
 
 const interior = checklist.packageSections.find((s) => s.id === 'interior');
 const exterior = checklist.packageSections.find((s) => s.id === 'exterior');
@@ -55,6 +61,7 @@ h1 em{color:var(--gold-hi)}
 .field i{display:block;border-bottom:1px solid var(--black);height:.26in}
 .booked{margin-top:.16in;padding:.1in .16in;background:var(--white);border:1px solid var(--line-light);border-radius:10px;display:grid;grid-template-columns:auto 1fr;gap:.06in .16in;align-items:center}
 .booked b{font-size:7pt;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep)}
+.picks{display:flex;flex-wrap:wrap;row-gap:.04in}
 .pick{display:inline-flex;align-items:center;gap:.06in;margin-right:.18in;font-weight:600;font-size:9pt;white-space:nowrap}
 .box{display:inline-block;width:.17in;height:.17in;border:1.4px solid var(--black);border-radius:3px;background:var(--white);flex:none}
 .sec{margin-top:.18in}
@@ -66,15 +73,17 @@ h1 em{color:var(--gold-hi)}
 .sec li{display:flex;align-items:center;gap:.1in;padding:.048in 0;border-bottom:1px solid var(--line-light)}
 .sec li .task{flex:1;font-weight:500}
 .sec li::before{content:'';width:.075in;height:.075in;border-radius:50%;background:var(--gold);flex:none;margin:0 .04in}
+.p2 .sec{margin-top:.12in}
+.p2 .sec li{padding:.036in 0}
 .legend{margin-top:.1in;font-size:8pt;color:var(--muted)}
-.cond{margin-top:.24in}
+.cond{margin-top:.18in}
 .cond h3{font-family:'Instrument Serif',serif;font-weight:400;font-size:19pt;border-bottom:2px solid var(--black);padding-bottom:.05in}
 .cond p{font-size:8.5pt;color:var(--muted);margin-top:.06in}
-.cond .ln{border-bottom:1px solid var(--line-dark);height:.3in}
-.sign{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.3in}
+.cond .ln{border-bottom:1px solid var(--line-dark);height:.26in}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:.35in;margin-top:.2in}
 .sign .field i{height:.38in}
 .confirm{margin-top:.08in;font-size:8pt;color:var(--muted)}
-.guarantee{margin-top:.28in;padding:.16in .2in;background:var(--black);color:var(--white);border-radius:12px;font-size:9pt}
+.guarantee{margin-top:.2in;padding:.16in .2in;background:var(--black);color:var(--white);border-radius:12px;font-size:9pt}
 .guarantee b{display:block;font-family:'Instrument Serif',serif;font-weight:400;font-style:italic;color:var(--gold-hi);font-size:15pt;margin-bottom:2px}
 .foot{position:absolute;left:.6in;right:.6in;bottom:.32in;display:flex;justify-content:space-between;font-size:7.5pt;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line-light);padding-top:.09in}
 .foot b{color:var(--gold-deep)}
@@ -86,7 +95,7 @@ h1 em{color:var(--gold-hi)}
   <div class="rule"></div>
   <div class="body">
     <div class="fields">${line('Customer', 'customer')}${line('Vehicle', 'vehicle')}${line('Date', 'date')}${line('Detailer', 'detailer')}</div>
-    <div class="booked"><b>Package</b><div>${packages.map((p) => pick(p.name, p.id)).join('')}</div><b>Add-ons</b><div>${extras.map((e) => pick(e.name, e.id)).join('')}</div></div>
+    <div class="booked"><b>Package</b><div class="picks">${packages.map((p) => pick(p.name, p.id)).join('')}</div>${addonRows}</div>
     <p class="legend">Deluxe includes everything in both the Interior and Exterior details. Add-on services are on page 2.</p>
     ${section(interior)}
     ${section(exterior)}
@@ -94,7 +103,7 @@ h1 em{color:var(--gold-hi)}
   <div class="foot"><span><b>Mirror Finish</b> · ${esc(SITE.phoneDisplay)}</span><span>Page 1 of 2</span></div>
 </div>
 <div class="page">
-  <div class="body" style="padding-top:.55in">
+  <div class="body p2" style="padding-top:.42in">
     ${checklist.addonSections.map(section).join('')}
     <div class="cond"><h3>Vehicle condition before service</h3><p>Note existing scratches, dents, stains or items to be careful with. We document the vehicle's condition before service begins.</p>
       <div class="ln"></div><div class="ln"></div><div class="ln"></div></div>

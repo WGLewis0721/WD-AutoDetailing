@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildPaymentLink, lineTotal, OrderError, type CheckoutOrder } from './checkout';
-import { extras, packages } from '../data/menu';
+import { extras, legacyExtras, packages } from '../data/menu';
 
 const base: CheckoutOrder = {
   cars: [{ year: '2022', make: 'Toyota', model: 'Camry', packageId: 'deluxe', extraIds: [] }],
@@ -32,7 +32,7 @@ const SQUARE_CATALOG: Record<string, [string, number]> = {
 const WEBSITE_PRICE_ONLY = new Set(['FTS5EPOWPWUIMLQC5EP2UIXJ', 'R2RWG6N5PK7ZJENI25APGMLL', '4BKQZYOKRBMH3W5S3RHCY35C']);
 
 describe('menu matches the Square catalog', () => {
-  it.each([...packages, ...extras].map((x) => [x.name, x.square, x.cents] as const))('%s', (_, id, cents) => {
+  it.each([...packages, ...extras, ...legacyExtras].filter((x) => x.square).map((x) => [x.name, x.square!, x.cents] as const))('%s', (_, id, cents) => {
     expect(SQUARE_CATALOG[id], `unknown Square variation ${id}`).toBeDefined();
     if (WEBSITE_PRICE_ONLY.has(id)) expect(cents, 'website price should differ from Square until Square is updated').toBeLessThan(SQUARE_CATALOG[id][1]);
     else expect(cents).toBe(SQUARE_CATALOG[id][1]);
@@ -59,10 +59,10 @@ describe('buildPaymentLink', () => {
   it('itemises every car in a multi-car order and rounds the deposit once', () => {
     const r = buildPaymentLink({ ...base, cars: [
       { year: '2020', make: 'Honda', model: 'Civic', packageId: 'exterior', extraIds: ['decon'] },
-      { bodyStyle: 'truck', packageId: 'interior', extraIds: ['pet-hair', 'deep-treatment'] },
+      { bodyStyle: 'truck', packageId: 'interior', extraIds: ['pet-hair', 'refresh-steam'] },
     ] }, opts);
     expect(r.order.line_items.every((l) => /^Car [12]: /.test(l.note ?? ''))).toBe(true);
-    const total = 5000 + 4000 + 5000 + 4000 + 7500 + 7500; // ext + decon + int + standard truck + 2 extras
+    const total = 5000 + 4000 + 5000 + 4000 + 7500 + 5000; // ext + decon + int + standard truck + pet hair + steam cleaning
     expect(charged(r)).toBe(Math.round(total * 0.2));
     expect(r.order.metadata.vehicles).toContain('Honda Civic');
   });

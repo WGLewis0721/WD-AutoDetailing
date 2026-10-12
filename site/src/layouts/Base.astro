@@ -1,7 +1,7 @@
 ---
 import '../styles/base.css';
 import { SITE } from '../data/site';
-import { extras, packages } from '../data/menu';
+import { addonGroups, extras, packages } from '../data/menu';
 interface Props { title: string; description: string; schema?: Record<string, unknown>[]; noindex?: boolean }
 const { title, description, schema = [], noindex = false } = Astro.props;
 /* The site is served from a sub-path on GitHub Pages, so absolute URLs are built from the full site URL, not the host root. */
@@ -32,6 +32,7 @@ const business = {
     name: 'Mobile detailing packages and add-ons',
     itemListElement: [
       ...packages.map((p) => ({ '@type': 'Offer', price: price(p.cents), priceCurrency: 'USD', itemOffered: { '@type': 'Service', name: `${p.name} mobile detail`, description: p.features.join('. '), serviceType: 'Mobile auto detailing', provider: { '@id': root + '#business' } } })),
+      ...addonGroups.map((g) => ({ '@type': 'Offer', price: price(g.cents), priceCurrency: 'USD', itemOffered: { '@type': 'Service', name: g.name, description: g.blurb, provider: { '@id': root + '#business' } } })),
       ...extras.map((e) => ({ '@type': 'Offer', price: price(e.cents), priceCurrency: 'USD', itemOffered: { '@type': 'Service', name: e.name, description: e.blurb, provider: { '@id': root + '#business' } } })),
     ],
   },

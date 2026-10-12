@@ -17,7 +17,7 @@ describe('quote', () => {
   it('rounds odd deposits to whole cents', () => {
     // $50 + $20 + $40 = $110 -> $22.00; $50 + $75 + $50 = $175 -> $35.00; a $1.23 build would give 25c
     expect(quote({ packageId: 'interior', sizeId: 'small', extraIds: ['decon'] }).depositCents).toBe(2200);
-    expect(quote({ packageId: 'exterior', sizeId: 'sedan', extraIds: ['deep-treatment', 'headlight'] }).depositCents).toBe(3500);
+    expect(quote({ packageId: 'exterior', sizeId: 'sedan', extraIds: ['pet-hair', 'headlight'] }).depositCents).toBe(3500);
   });
 });
 

@@ -222,3 +222,30 @@ database not connected)" into the Square payment note; the build is not saved. O
   re-run `npm run checklist` and commit the PDF, `checklist.hash` and `checklist-layout.json` together; `checklist-fill.test.ts`
   fails if a package or add-on has no box in the layout or the layout is out of date. Characters the PDF's standard font
   cannot print (emoji, non-Latin scripts) are left out of the filled text.
+
+## Round 13: Interior Deep Treatment split into two treatments, with individually selectable items (2026-10-12)
+
+- **Two new add-ons replace Interior Deep Treatment**, each a *combo with items* (the owner's pizza comparison: a combo, or just
+  the topping you want):
+  - **Stain Removal Treatment**, all three areas **$100** (saves $20): Headliner $35 (20 min), Upholstery $45 (30 min), Carpet $40 (25 min).
+  - **Refresh Interior Treatment**, both **$80** (saves $15): Steam cleaning $50 (30 min), Upholstery cleaning $45 (30 min).
+  - **Pet Hair and Stain Removal** is now **Pet Hair Removal** ($75, same Square item), because stains moved to Stain Removal.
+  - The Interior package's line "Vacuum and shampoo upholstery" became "Vacuum and light upholstery clean" (and the checklist's
+    "Light upholstery clean"), so it no longer overlaps the paid upholstery cleaning. Revert both lines in `menu.ts` and
+    `checklist.ts` if you want the old wording back.
+- **How it works for the customer** (booking page): tap a combo and all its items tick at the combo price; or tap only the
+  items wanted (each priced alone). Ticking every item by hand is the same as the combo. Taking one away from a combo
+  switches the price to the items left. The home page lists each combo with its items and the saving.
+- **How it is built:** items are ordinary add-on ids (`stain-headliner`, `stain-upholstery`, `stain-carpet`, `refresh-steam`,
+  `refresh-upholstery`), so the order format, the database column (`mf_bookings.cars[].extraIds`) and the API do not change.
+  `menu.ts` holds `addonGroups` (the combos and their price); `priceExtras()` in `pricing.ts` is the one rule that turns the
+  chosen ids into priced lines (every item of a combo chosen = one combo line). Checkout, the review screen, the request text
+  message, the order card and the checklist all use it. The new items are not in the Square catalog, so a Payment Link
+  (when deposits are back on) sends them as their own priced lines instead of catalog items; Square's catalog was not touched.
+- **Old pages:** a browser that loaded the site before this change can still send `deep-treatment`. `legacyExtras` in
+  `menu.ts` keeps pricing it at the $75 the customer saw. **Remove `legacyExtras` (and its test in `addons.test.ts`) after 2026-10-26.**
+- **Checklist PDF** was regenerated: the booked-services box on page 1 is grouped per treatment (Headliner / Upholstery /
+  Carpet, Steam cleaning / Upholstery cleaning, other add-ons) and a combo ticks every one of its boxes; page 2 has a
+  section per treatment. The outreach flyers were regenerated with the new add-on names ("from $35" / "from $45").
+- Tests: `addons.test.ts` (combo and item pricing, order independence, legacy id, checkout lines), plus the updated
+  checklist, fill, checkout and pricing tests.

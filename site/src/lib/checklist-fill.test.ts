@@ -10,7 +10,7 @@ const template = readFileSync(new URL('../../public/Mirror-Finish-Service-Checkl
 
 const order: ChecklistFill = {
   customer: 'Jordan Smith', when: 'Wed, Oct 14, 8:00 AM', ref: 'MF-0A1B2C3D',
-  vehicles: [{ label: '2022 Toyota Camry', packageId: 'deluxe', extraIds: ['deep-treatment', 'headlight'] }],
+  vehicles: [{ label: '2022 Toyota Camry', packageId: 'deluxe', extraIds: ['refresh-steam', 'headlight'] }],
 };
 
 const hex = (text: string) => [...text].map((ch) => ch.charCodeAt(0).toString(16).padStart(2, '0')).join('').toUpperCase();
@@ -57,6 +57,11 @@ describe('filling the checklist with a customer\'s order', () => {
     const doc = await PDFDocument.load(await fillChecklist(template, order));
     const blank = await PDFDocument.load(template);
     expect(strokes(pageContent(doc, 0)) - strokes(pageContent(blank, 0))).toBe(3 * 2); // deluxe + 2 add-ons
+    // A whole combo is every one of its items: the three stain removal boxes are all checked, a single item checks only its own.
+    const combo = await PDFDocument.load(await fillChecklist(template, { ...order, vehicles: [{ label: 'Car', packageId: 'interior', extraIds: ['stain-headliner', 'stain-upholstery', 'stain-carpet'] }] }));
+    expect(strokes(pageContent(combo, 0)) - strokes(pageContent(blank, 0))).toBe(4 * 2);
+    const one = await PDFDocument.load(await fillChecklist(template, { ...order, vehicles: [{ label: 'Car', packageId: 'interior', extraIds: ['stain-carpet'] }] }));
+    expect(strokes(pageContent(one, 0)) - strokes(pageContent(blank, 0))).toBe(2 * 2);
     const none = await PDFDocument.load(await fillChecklist(template, { ...order, vehicles: [{ label: 'Car', packageId: null, extraIds: [] }] }));
     expect(strokes(pageContent(none, 0)) - strokes(pageContent(blank, 0))).toBe(0);
   });

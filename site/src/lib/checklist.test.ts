@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { addonSections, checklist, checklistFingerprint, packageSections } from '../data/checklist';
-import { extras, packages } from '../data/menu';
+import { addonMenu, extras, packages } from '../data/menu';
 
 const pdfUrl = new URL('../../public/Mirror-Finish-Service-Checklist.pdf', import.meta.url);
 const hashUrl = new URL('../data/checklist.hash', import.meta.url);
@@ -14,15 +14,27 @@ describe('service checklist content', () => {
     expect(packageSections.every((s) => s.note.includes(s.id === 'interior' ? 'Interior' : 'Exterior'))).toBe(true);
   });
 
-  it('has a section for every add-on on the menu and none for add-ons that do not exist', () => {
-    expect(addonSections.map((s) => s.id).sort()).toEqual(extras.map((e) => e.id).sort());
-    for (const e of extras) expect(addonSections.find((s) => s.id === e.id)!.title).toBe(e.name);
+  it('has a section for every add-on and combo on the menu, in menu order, and none for anything else', () => {
+    const entries = addonMenu.map((m) => (m.kind === 'group' ? { id: m.group.id, name: m.group.name } : { id: m.extra.id, name: m.extra.name }));
+    expect(addonSections.map((s) => s.id)).toEqual(entries.map((e) => e.id));
+    for (const e of entries) expect(addonSections.find((s) => s.id === e.id)!.title).toBe(e.name);
   });
 
-  it('includes the headliner in Interior Deep Treatment, on the checklist and in the add-on description', () => {
-    const deep = addonSections.find((s) => s.id === 'deep-treatment')!;
-    expect(deep.items.some((i) => /headliner/i.test(i))).toBe(true);
-    expect(extras.find((e) => e.id === 'deep-treatment')!.blurb).toMatch(/headliner/i);
+  it('lists every item of a combo by its name, so each topping the customer can pick is on the checklist', () => {
+    for (const m of addonMenu) {
+      if (m.kind !== 'group') continue;
+      const section = addonSections.find((s) => s.id === m.group.id)!;
+      for (const o of m.options) {
+        expect(section.items.some((i) => i.toLowerCase().startsWith((o.short ?? o.name).toLowerCase())), `${o.name} missing from ${section.title}`).toBe(true);
+      }
+    }
+    expect(extras.filter((e) => e.group).length).toBeGreaterThan(0);
+  });
+
+  it('puts the headliner in Stain Removal Treatment, on the checklist and in the menu text', () => {
+    const stain = addonSections.find((s) => s.id === 'stain-removal')!;
+    expect(stain.items.some((i) => /headliner/i.test(i))).toBe(true);
+    expect(extras.find((e) => e.id === 'stain-headliner')!.blurb).toMatch(/headliner/i);
   });
 
   it('has no blank or repeated items inside a section', () => {

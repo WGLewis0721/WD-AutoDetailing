@@ -1,13 +1,14 @@
-import { extras, packages, sizes, type SizeId } from '../data/menu.js';
+import { extras, findExtra, legacyExtras, packages, sizes, type SizeId } from '../data/menu.js';
 import { SITE } from '../data/site.js';
-import { quoteOrder, MAX_CARS, type OrderQuote } from './pricing.js';
+import { quoteOrder, priceExtras, MAX_CARS, type OrderQuote } from './pricing.js';
 import { bodyStyles, modelsFor } from './vehicles.js';
 
 /* The order the booking page sends to the checkout function, and the Square Payment Link request built from it.
    Same idea as the AGT site: the browser only says what was chosen; the server re-prices it from this repo's own
    price list (menu.ts) and decides each car's size from its make and model, so edited prices or a "sedan" label
    on a truck change nothing. Packages and add-ons are sent as the real Square catalog items (so they appear in
-   Square's reports by name); size charges, which are not in the catalog, are sent as their own lines. Square then
+   Square's reports by name); size charges and the stain removal and refresh add-ons, which are not in the catalog,
+   are sent as their own lines (a whole combo is one line at the combo price). Square then
    shows every line the customer built, with the balance taken off as a discount so the card is charged exactly
    the 20% deposit. */
 
@@ -60,7 +61,7 @@ export function validate(o: CheckoutOrder): void {
   if (!Array.isArray(o.cars) || o.cars.length < 1 || o.cars.length > MAX_CARS) throw new OrderError(`Choose 1 to ${MAX_CARS} cars`);
   for (const c of o.cars) {
     if (!packages.some((p) => p.id === c.packageId)) throw new OrderError(`Unknown package: ${c.packageId}`);
-    if (!Array.isArray(c.extraIds) || c.extraIds.some((e) => !extras.some((x) => x.id === e))) throw new OrderError('Unknown add-on');
+    if (!Array.isArray(c.extraIds) || c.extraIds.some((e) => !findExtra(e))) throw new OrderError('Unknown add-on');
     if (new Set(c.extraIds).size !== c.extraIds.length) throw new OrderError('Duplicate add-on');
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw new OrderError('Invalid date');
@@ -77,7 +78,7 @@ export function priceOrder(o: CheckoutOrder): OrderQuote & { labels: string[] } 
   return { ...q, labels: resolved.map((r) => r.label) };
 }
 
-const catalogCents = new Map<string, number>([...packages, ...extras].map((x) => [x.square, x.cents]));
+const catalogCents = new Map<string, number>([...packages, ...extras, ...legacyExtras].flatMap((x) => (x.square ? [[x.square, x.cents] as [string, number]] : [])));
 /** Order total as Square will compute it: catalog price for catalog lines, the given price for ad-hoc lines. */
 export const lineTotal = (lines: PaymentLinkRequest['order']['line_items']) =>
   lines.reduce((n, l) => n + ('catalog_object_id' in l ? catalogCents.get(l.catalog_object_id) ?? NaN : l.base_price_money.amount), 0);
@@ -111,7 +112,9 @@ export function buildPaymentLink(o: CheckoutOrder, opts: { locationId: string; r
     line_items.push({ catalog_object_id: pkg.square, quantity: '1', note });
     const size = sizes.find((s) => s.id === sizeFor(c).size)!;
     if (size.cents > 0) line_items.push({ name: `Vehicle size: ${size.name}`, quantity: '1', base_price_money: usd(size.cents), note });
-    for (const id of c.extraIds) line_items.push({ catalog_object_id: extras.find((x) => x.id === id)!.square, quantity: '1', note });
+    for (const e of priceExtras(c.extraIds)) {
+      line_items.push(e.square ? { catalog_object_id: e.square, quantity: '1', note } : { name: e.label, quantity: '1', base_price_money: usd(e.cents), note });
+    }
   });
   // Square prices catalog lines itself; this is what it will total, using the prices menu.ts mirrors.
   const sum = lineTotal(line_items);

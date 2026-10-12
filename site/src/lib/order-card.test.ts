@@ -7,7 +7,7 @@ const card: OrderCardData = {
   vehicles: [{ name: '2021 Chevrolet Corvette', packageName: 'Deluxe',
     plateUrl: '/models/plate.webp', imageUrl: '/models/coupe-car.webp',
     lines: [{ label: 'Deluxe', cents: 20000 },
-      { label: 'Pet Hair and Stain Removal', cents: 7500 },
+      { label: 'Pet Hair Removal', cents: 7500 },
       { label: 'Headlight Restoration', cents: 5000 }],
   }],
 };

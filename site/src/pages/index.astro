@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE } from '../data/site';
-import { packages, sizes, extras } from '../data/menu';
+import { packages, sizes, addonMenu, groupSavings } from '../data/menu';
 import { SHOW_SIZE_PRICES } from '../lib/display';
 import { fmt } from '../lib/pricing';
 import { icon } from '../lib/icons';
@@ -152,14 +152,26 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     <section id="extras" class="section">
       <div class="wrap split">
         <div>
-          <div class="head reveal"><p class="eyebrow">Add-ons</p><h2>Make it <em>yours</em></h2><p class="lead">Add any of these to any package. Pricing is per vehicle.</p></div>
+          <div class="head reveal"><p class="eyebrow">Add-ons</p><h2>Make it <em>yours</em></h2><p class="lead">Add any of these to any package, or mix and match the individual items. Pricing is per vehicle.</p></div>
           <ul class="menu">
-            {extras.map((e, i) => (
+            {addonMenu.map((entry, i) => entry.kind === 'group' ? (
+              <li class="reveal combo-li" style={`--d:${i * 70}ms`}>
+                <span class="mi"><Fragment set:html={icon(addonIcons[i % 4], 22)} /></span>
+                <div><b>{entry.group.name}</b><small>{entry.group.blurb}</small>
+                  <ul class="subs">
+                    {entry.options.map((o) => (<li><span>{o.short ?? o.name}</span><b>+{fmt(o.cents)}</b></li>))}
+                  </ul>
+                  <small class="saveline">All {entry.options.length} for {fmt(entry.group.cents)}: save {fmt(groupSavings(entry.group))}</small>
+                </div>
+                <span class="dots" aria-hidden="true"></span>
+                <b class="num">{fmt(entry.group.cents)}</b>
+              </li>
+            ) : (
               <li class="reveal" style={`--d:${i * 70}ms`}>
                 <span class="mi"><Fragment set:html={icon(addonIcons[i % 4], 22)} /></span>
-                <div><b>{e.name}</b><small>{e.blurb}</small></div>
+                <div><b>{entry.extra.name}</b><small>{entry.extra.blurb}</small></div>
                 <span class="dots" aria-hidden="true"></span>
-                <b class="num">+{fmt(e.cents)}</b>
+                <b class="num">+{fmt(entry.extra.cents)}</b>
               </li>
             ))}
           </ul>
@@ -391,11 +403,15 @@ const faqSchema = { '@type': 'FAQPage', mainEntity: faqs.map(([q, a]) => ({ '@ty
     .split { display: grid; gap: var(--s7); align-items: center; }
     .split-img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow); max-height: 560px; }
     .menu { list-style: none; padding: 0; margin: 0 0 var(--s6); display: grid; }
-    .menu li { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s4); align-items: center; padding: var(--s4) 0; border-bottom: 1px solid var(--line-light); }
+    .menu > li { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s4); align-items: center; padding: var(--s4) 0; border-bottom: 1px solid var(--line-light); }
     .menu .mi { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--ivory); color: var(--gold-deep); }
     .menu small { display: block; color: var(--muted); font-size: var(--fs-sm); line-height: 1.4; }
     .menu .dots { display: none; }
-    .menu li > b:last-child { font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; grid-column: 3 / 5; }
+    .menu .subs { list-style: none; margin: var(--s2) 0 0; padding: 0; display: grid; gap: 2px; max-width: 320px; }
+    .menu .subs li { display: flex; justify-content: space-between; gap: var(--s3); font-size: var(--fs-sm); color: var(--muted); }
+    .menu .subs li b { color: var(--black); font-weight: 700; }
+    .menu .saveline { color: var(--gold-deep); font-weight: 700; margin-top: var(--s1); }
+    .menu > li > b:last-child { font-family: var(--font-display); font-size: 1.6rem; font-weight: 400; grid-column: 3 / 5; }
     .steps { list-style: none; padding: 0; margin: 0 0 var(--s7); display: grid; gap: var(--s6); }
     .steps li { border-top: 1px solid var(--line-dark); padding-top: var(--s5); }
     .bignum { display: block; font-family: var(--font-display); font-size: 5rem; line-height: 1; color: var(--gold); margin-bottom: var(--s3); }

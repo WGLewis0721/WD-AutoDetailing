@@ -34,8 +34,9 @@ Facebook and Nextdoor posts, group posts (read the group's rules first), and Ins
 the caption.
 
 ## What the ads say (all taken from the website)
-Prices: Interior $50, Exterior $50, Deluxe $75 (sedans and coupes; larger vehicles cost more). Add-ons: Pet Hair and Stain
-Removal $75, Interior Deep Treatment $75 (includes the headliner), Paint and Glass Decontamination $40, Headlight
-Restoration $50. The customer provides water and electricity; payment is due when the service is complete; 24-hour
+Prices: Interior $50, Exterior $50, Deluxe $75 (sedans and coupes; larger vehicles cost more). Add-ons: Stain Removal
+Treatment (headliner $35, upholstery $45, carpet $40, or all three $100), Refresh Interior Treatment (steam cleaning $50,
+upholstery cleaning $45, or both $80), Pet Hair Removal $75, Paint and Glass Decontamination $40, Headlight
+Restoration $50. The flyers say "from" the cheapest single item for the two treatments. The customer provides water and electricity; payment is due when the service is complete; 24-hour
 satisfaction guarantee. Nothing about insurance, licensing, discounts or results is claimed, because the site does not
 state it. Add such a claim only if it is true.
