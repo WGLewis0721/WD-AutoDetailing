@@ -18,9 +18,8 @@
 import { AGREEMENT } from '../site/src/data/agreement.js';
 import { bookingCars, buildPaymentLink, lineTotal, OrderError, priceOrder, type CheckoutOrder } from '../site/src/lib/checkout.js';
 import { db, dbReady, foreignOrigin, json, log, preflight, SITE_URL, UUID } from './_lib.js';
+import { SQUARE_API, SQUARE_VERSION } from './_square.js';
 
-const SQUARE_API = process.env.SQUARE_ENV === 'production' ? 'https://connect.squareup.com' : 'https://connect.squareupsandbox.com';
-const SQUARE_VERSION = '2025-01-23';
 
 /** Short, readable booking reference; also the idempotency key, so a double-tap can't create two links. */
 const newRef = () => 'MF-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();

@@ -30,6 +30,7 @@ const PENDING = 'mf-pending';
    /api/agreement (server adds IP and user agent), and checkout refuses to start without an accepted agreement id.
    The id is kept per browser for the current agreement version only, so a text change asks again. */
 const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
+const CONFIRM_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'confirm');
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -538,6 +539,9 @@ async function onGateClick(e: Event) {
 function returnFromSquare(): boolean {
   const ref = params.get('paid');
   if (!ref) return false;
+  // Tell the server the customer is back: it checks the payment with Square and finishes the booking. The Detail Pass
+  // below does not wait for it (the Square webhook covers a failed call here).
+  if (LIVE) void fetch(CONFIRM_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ref }), keepalive: true }).catch(() => undefined);
   let pending: { ref: string; s: State } | null = null;
   try { pending = JSON.parse(localStorage.getItem(PENDING) ?? 'null'); } catch { /* ignore */ }
   history.replaceState(null, '', location.pathname);

@@ -151,3 +151,34 @@ Until `SUPABASE_SECRET_KEY` is set in Vercel, `/api/agreement` answers 503 and t
 Checkout accepts `local` only while the database is unconfigured and writes "Agreed: v1.0.0 at <time> (not recorded:
 database not connected)" into the Square payment note; the build is not saved. Once the key is set, recording and the
 428 enforcement switch on with no redeploy, and anyone holding a `local` acceptance is shown the agreement again.
+
+## Round 8: deposits confirmed, appointments on the Square calendar
+
+**What happens after a customer pays.** Square returns them to `/book/?paid=REF`; the page calls `POST /api/confirm`
+(and Square's `payment.updated` webhook calls `POST /api/square-webhook`, for customers who never come back). Both run
+`api/_finalize.ts`, which is safe to repeat:
+1. Asks Square for the order. Paid = a tender exists, nothing is left due, and the total equals the quoted deposit.
+   Nothing from the browser is trusted.
+2. Marks `mf_bookings.payment_status = 'paid'` (with `paid_at`, `square_payment_id`).
+3. Creates the appointment through the Square Bookings API: customer found by email or created, one segment per car
+   (its package's service, lasting that car's full time including add-ons, so the calendar blocks the promised time),
+   start time converted from Montgomery wall-clock to UTC (DST-safe), the seller note carrying address, phone, cars,
+   add-ons, deposit paid and balance due. The idempotency key is `mf-booking-<ref>`.
+
+**Square plan limit (verified 2026-10-12).** `POST /v2/bookings` answers 403 "Merchant subscription does not support
+write operations" on the current Appointments plan; seller-level writes need Appointments Plus or Premium. Until then
+paid bookings get `calendar_status = 'failed'` with the reason in `calendar_error`, and nothing else is affected. Each
+later confirm/webhook run that succeeds also retries earlier missed bookings (3 per run, up to 20 attempts each), so
+upgrading the plan needs no code change.
+
+**Database.** Migration `mf_bookings_payment_and_calendar` adds `payment_status`, `paid_at`, `square_payment_id`,
+`calendar_status`, `square_booking_id`, `calendar_error`, `calendar_attempts`, plus indexes.
+
+**Webhook setup (optional, recommended).** Square Developer Dashboard, your app, Webhooks, add endpoint
+`https://mirror-finish-checkout-gray-matter5.vercel.app/api/square-webhook`, event `payment.updated`; copy its Signature
+Key into the Vercel env var `SQUARE_WEBHOOK_SIGNATURE_KEY` (Sensitive). Without the key the endpoint answers 503 and
+`/api/confirm` alone covers customers who return to the site. Optional envs: `SQUARE_WEBHOOK_URL` (exact URL Square
+calls, if a custom domain or proxy changes it), `SQUARE_TEAM_MEMBER_ID` (otherwise the first bookable team member).
+
+**Real availability (next).** `POST /v2/bookings/availability/search` works on the current plan and returns 7:00 AM to
+3:00 PM starts every 30 minutes for Deluxe; the booking page's times are still sample data and can be swapped for this.
