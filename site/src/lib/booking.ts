@@ -4,7 +4,8 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
-import { createStill, type Still } from './stills';
+import { createStill, vehicleStillUrl, vehicleStagePlateUrl, type Still } from './stills';
+import { renderOrderCardPng, downloadCardBlob, shareCardBlob, cardFilename, type OrderCardData } from './order-card';
 import { AGREEMENT, agreementHash } from '../data/agreement';
 
 interface Car {
@@ -30,6 +31,11 @@ const PENDING = 'mf-pending';
    /api/agreement (server adds IP and user agent), and checkout refuses to start without an accepted agreement id.
    The id is kept per browser for the current agreement version only, so a text change asks again. */
 const AGREEMENT_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'agreement');
+const AVAILABILITY_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'availability');
+const STATUS_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'booking-status');
+const HEALTH_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'health');
+const REQUEST_URL = CHECKOUT_URL.replace(/create-checkout\/?$/, 'request-booking');
+let launchMode: 'request' | 'paid' = 'request';
 const AGREE_KEY = 'mf-agreement';
 interface Agreed { id: string; version: string; at: string }
 const readAgreed = (): Agreed | null => {
@@ -39,7 +45,7 @@ let agreed: Agreed | null = readAgreed();
 
 const KEY = 'mf-build-v3';
 const OTHER = 'other';
-const STEPS = ['Vehicles', 'Build', 'When', 'Details', 'Deposit'];
+const STEPS = ['Vehicles', 'Build', 'When', 'Details', 'Review'];
 const REWARD = { title: '$10 off your next detail', body: 'Preview reward. Mirror Finish sets the final offer before launch.' };
 const TIPS: Record<string, string> = {
   sedan: 'Dry your car after rain so water spots do not etch into the clear coat.',
@@ -96,6 +102,37 @@ let errors: Record<string, string> = {};
 let lastTotal = 0;
 let lastDeposit = 0;
 let pay: Pay = 'idle';
+let availability: { date: string; pkg: string; starts: number[]; loading: boolean; error: string } | null = null;
+async function loadAvailability() {
+  if (!LIVE || s.step !== 3 || !s.date || s.cars.length !== 1 || !s.cars[0].packageId) return;
+  const date = s.date, pkg = s.cars[0].packageId;
+  if (availability?.date === date && availability.pkg === pkg) return;
+  availability = { date, pkg, starts: [], loading: true, error: '' };
+  render();
+  try {
+    const url = new URL(AVAILABILITY_URL);
+    url.searchParams.set('date', date);
+    url.searchParams.set('package', pkg);
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (availability?.date !== date || availability.pkg !== pkg) return;
+    availability = { date, pkg, starts: res.ok && Array.isArray(data.starts) ? data.starts : [], loading: false,
+      error: res.ok ? '' : String(data.error || 'Live availability is not available right now.') };
+    if (s.startMin >= 0 && !availability.starts.includes(s.startMin)) s.startMin = -1;
+    render();
+  } catch {
+    if (availability?.date !== date || availability.pkg !== pkg) return;
+    availability = { date, pkg, starts: [], loading: false, error: 'Cannot connect to live availability. Please text us to book.' };
+    render();
+  }
+}
+function verifiedSlot() {
+  if (launchMode === 'request' && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) return !!s.date && s.startMin >= 0;
+  return !LIVE || !!(availability && !availability.loading && !availability.error &&
+    availability.date === s.date && availability.pkg === s.cars[0]?.packageId &&
+    s.cars.length === 1 && s.cars[0].extraIds.length === 0 &&
+    availability.starts.includes(s.startMin));
+}
 let slotLost = false;
 let demoUsed = false;
 const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -104,7 +141,7 @@ function valid(step: number): boolean {
   errors = {};
   if (step === 1) return inArea() && s.cars.every((c) => c.shape && c.size);
   if (step === 2) return s.cars.every((c) => c.packageId);
-  if (step === 3) return !!s.date && s.startMin >= 0;
+  if (step === 3) return !!s.date && s.startMin >= 0 && verifiedSlot();
   if (step === 4) {
     if (s.name.trim().length < 2) errors.name = 'Enter your name';
     if (s.phone.replace(/\D/g, '').length < 10) errors.phone = 'Enter a 10-digit mobile number';
@@ -201,20 +238,37 @@ function panelWhen(): string {
   const quick = nextAvailable(total).map((v) => `<button type="button" class="chipbtn ${s.date === v ? 'on' : ''}" data-date="${v}">${new Date(v + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</button>`).join('');
   let slotsHtml = '<p class="muted hint">Choose a day to see start times.</p>';
   if (s.date) {
-    const all = slotsFor(s.date, total);
+    const preferenceOnly = launchMode === 'request' && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0);
+    const all = slotsFor(s.date, total).map(slot => ({ ...slot, taken: LIVE && !preferenceOnly &&
+      !(availability?.date === s.date && availability?.pkg === s.cars[0]?.packageId &&
+        !availability.loading && !availability.error && availability.starts.includes(slot.startMin)) }));
+    if (LIVE && s.cars.length !== 1 && launchMode === 'paid') slotsHtml = '<p class="note">Multiple vehicles need manual scheduling. Please text us to book.</p>';
     const grp = (name: string, list: typeof all) => list.length ? `<div class="grp"><b>${name}</b><div class="slots">${list.map((x) => `<button type="button" class="slot ${s.startMin === x.startMin ? 'on' : ''}" data-start="${x.startMin}" ${x.taken ? 'disabled' : ''}>${x.label}${x.taken ? '<small>Booked</small>' : ''}</button>`).join('')}</div></div>` : '';
-    slotsHtml = grp('Morning', all.filter((x) => x.startMin < 720)) + grp('Afternoon', all.filter((x) => x.startMin >= 720));
+    if (launchMode === 'paid' && LIVE && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) {
+      slotsHtml = '<p class="note">Multi-car or add-on bookings need manual scheduling. Please text us to arrange your time.</p>';
+    } else if (preferenceOnly) {
+      slotsHtml = '<p class="note">Choose your preferred time. Multi-vehicle and add-on availability will be confirmed personally before any deposit is requested.</p>' + grp('Preferred morning', all.filter((x) => x.startMin < 720)) + grp('Preferred afternoon', all.filter((x) => x.startMin >= 720));
+    } else if (LIVE && availability?.loading) {
+      slotsHtml = '<p class="muted hint" role="status">Checking Square for available appointments…</p>';
+    } else if (LIVE && availability?.error) {
+      slotsHtml = '<p class="errsum" role="alert">' + esc(availability.error) + ' ' + textUs('Text us') + '.</p>';
+    } else if (LIVE && !availability) {
+      slotsHtml = '<p class="muted hint">Checking live appointment times…</p>';
+    } else {
+      slotsHtml = grp('Morning', all.filter((x) => x.startMin < 720)) + grp('Afternoon', all.filter((x) => x.startMin >= 720));
+      if (LIVE && !availability?.starts.length) slotsHtml = '<p class="muted hint">No appointments available for this service on this date.</p>';
+    }
   }
   const cars = s.cars.length;
   const lost = slotLost ? `<div class="errsum" role="alert"><b>That time was just booked.</b> Your build is saved. Pick another start time below.</div>` : '';
   return `<h2 tabindex="-1">Pick a <em>day and time</em></h2>${lost}
     <p class="muted">${cars > 1 ? `${cars} cars, one detailer, back to back: about ${hours(total)}.` : `Estimated time for your build: about ${hours(total)}.`} We come to you. Start times shown fit your whole order.</p>
-    ${quick ? `<div class="quickdays"><span>Soonest:</span>${quick}</div>` : `<p class="note">This order is too long for one day. ${textUs('Text us')} and we will arrange it.</p>`}
+    ${quick ? `<div class="quickdays"><span>Dates to check:</span>${quick}</div>` : `<p class="note">This order is too long for one day. ${textUs('Text us')} and we will arrange it.</p>`}
     <div class="cal card"><div class="calhead"><button type="button" class="ghostbtn" data-month="-1" ${prevOk ? '' : 'disabled'} aria-label="Previous month">&lsaquo;</button><b>${title}</b><button type="button" class="ghostbtn" data-month="1" ${nextOk ? '' : 'disabled'} aria-label="Next month">&rsaquo;</button></div>
     <div class="calgrid">${monthDays(m, total)}</div>
     <ul class="legend"><li><i class="k open"></i>Open</li><li><i class="k full"></i>Fully booked</li><li><i class="k closed"></i>Closed</li></ul></div>
     ${s.date ? `<h3 class="sub">${new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</h3>` : ''}${slotsHtml}
-    <p class="note">Preview: availability shown is sample data until booking goes live.</p>`;
+    ${LIVE ? `<p class="note">${launchMode === 'request' ? 'You are requesting a time, not reserving one. No payment will be collected until the appointment is confirmed.' : 'Available times come from Square Appointments and are verified again before checkout.'}</p>` : `<p class="note">Preview mode. Times are not confirmed.</p>`}`;
 }
 
 const describe = (id: string) => (errors[id] ? `aria-invalid="true" aria-describedby="e-${id}"` : '');
@@ -244,14 +298,14 @@ function panelDeposit(): string {
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
   const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
-    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>We could not open the secure checkout.</b> Nothing was charged. Try again in a moment, or ${textUs('text us')} and we will book it with you.</div>` : '';
+    : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>${launchMode === 'request' ? 'We could not submit your request.' : 'We could not open the secure checkout.'}</b> Nothing was charged. Try again, or ${textUs('text us')} to arrange your appointment.</div>` : '';
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
-    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>Deposit today (20%)</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
+    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr><tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr></tbody></table></div>
     <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection.</span></label>
     <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
-    <p class="note">Preview mode: no payment is taken in this version.</p>`;
+    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : 'Square will collect the 20% deposit securely after you continue.'}</p>`;
 }
 
 /* ---------- summary ---------- */
@@ -280,10 +334,10 @@ function summary() {
   const when = s.date && s.startMin >= 0 ? `<div class="ln sub"><span>When</span><b>${whenLabel()}</b></div>` : '';
   $('summary').innerHTML = `<div class="sumhead"><span>Your order</span><b>${rd}% ready</b></div><div class="meter" aria-hidden="true"><i style="width:${rd}%"></i></div>${groups}${where}${when}
     <div class="ln tot"><span>Total</span><b class="num" id="grand">${fmt(lastTotal)}</b></div>
-    <div class="ln"><span>Deposit today (20%)</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>`;
+    <div class="ln"><span>${launchMode === 'request' ? 'Deposit after confirmation (20%)' : 'Deposit today (20%)'}</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>`;
   tween($('grand'), lastTotal, o.totalCents);
   tween($('dep'), lastDeposit, o.depositCents);
-  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b><small>${fmt(o.depositCents)} today${s.cars.length > 1 ? ' · ' + s.cars.length + ' cars' : ''}</small>` : '<small>Build your order</small>';
+  $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b><small>${fmt(o.depositCents)} ${launchMode === 'request' ? 'after confirmation' : 'today'}${s.cars.length > 1 ? ' · ' + s.cars.length + ' cars' : ''}</small>` : '<small>Build your order</small>';
   lastTotal = o.totalCents; lastDeposit = o.depositCents;
 }
 
@@ -304,7 +358,7 @@ function render(focus = false) {
   if (focus) { panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter'); panel.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true }); }
   const o = order();
   const busy = pay === 'processing';
-  const label = busy ? 'Processing…' : s.step === 5 ? `${pay === 'declined' ? 'Try again: pay' : 'Pay'} ${fmt(o.depositCents)} deposit to book` : s.step === 4 ? 'Review order' : 'Continue';
+  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : `${pay === 'declined' ? 'Try again: pay' : 'Pay'} ${fmt(o.depositCents)} deposit to book`) : s.step === 4 ? 'Review order' : 'Continue';
   const ok = s.step === 4 ? true : valid(s.step);
   for (const id of ['next', 'mnext']) { const b = $(id); b.innerHTML = `<span>${id === 'mnext' && s.step < 5 ? 'Next' : label}</span>${busy ? '' : icon('arrow', 18)}`; b.toggleAttribute('disabled', !ok); b.setAttribute('aria-busy', String(busy)); }
   $('back').toggleAttribute('hidden', s.step === 1);
@@ -316,6 +370,7 @@ function render(focus = false) {
   $('vtag').innerHTML = sz ? `<b>${sz.name}</b><span>${sz.cents ? '+' + fmt(sz.cents) : 'Included'}</span>` : '<span>Pick a vehicle to see its size</span>';
   $('vcar').textContent = s.cars.length > 1 ? `Car ${s.active + 1} of ${s.cars.length}` : '';
   save();
+  if (s.step === 3 && LIVE && s.date) void loadAvailability();
 }
 
 /* ---------- actions ---------- */
@@ -352,6 +407,10 @@ async function payLive() {
     const res = await fetch(CHECKOUT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkoutOrder()) });
     const data = await res.json().catch(() => ({}));
     if (res.status === 428) { forgetAgreement(); pay = 'idle'; render(); openGate(); return; }
+    if (res.status === 409) {
+      pay = 'idle'; s.startMin = -1; slotLost = true; s.step = 3; availability = null;
+      render(true); return;
+    }
     if (!res.ok || !data.url) throw new Error(data.error ?? `HTTP ${res.status}`);
     // Square sends the customer back to /book/?paid=REF after a successful payment; keep the build to show the pass.
     try { localStorage.setItem(PENDING, JSON.stringify({ ref: data.ref, s })); } catch { /* the pass falls back to a short note */ }
@@ -361,7 +420,177 @@ async function payLive() {
   }
 }
 
+async function requestLive() {
+  pay = 'processing'; render();
+  try {
+    const res = await fetch(REQUEST_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkoutOrder()),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 428) { forgetAgreement(); pay='idle'; render(); openGate(); return; }
+    if (res.status === 409) { pay='idle'; s.startMin=-1; s.step=3; availability=null; slotLost=true; render(true); return; }
+    if (!res.ok || !/^MF-[A-Z0-9]{8}$/.test(data.ref)) throw Error(data.error || 'Request unavailable');
+
+    // Use the server-repriced, saved totals, not editable values from the browser.
+    const { totalCents, depositCents, balanceCents } = data;
+    if (![totalCents, depositCents, balanceCents].every(
+      v => Number.isSafeInteger(v) && v >= 0) ||
+      totalCents !== depositCents + balanceCents || depositCents <= 0) {
+      throw Error('Server quote unavailable');
+    }
+    const quoted = order();
+    const when = whenLabel();
+    // Image-first Design B: one continuous photographic card.
+    // Keep every vehicle's existing priced lines, including add-ons and size fees.
+    const leadCar = s.cars[0];
+    const leadPackage = packages.find(p => p.id === leadCar.packageId);
+    const leadArt = leadCar.mesh
+      ? `<img class="request-photo-plate" src="${esc(vehicleStagePlateUrl())}" alt="" loading="eager">
+         <img class="request-photo-vehicle" src="${esc(vehicleStillUrl(leadCar.mesh))}" alt="" loading="eager">`
+      : `<img class="request-photo-plate" src="${esc(vehicleStagePlateUrl())}" alt="" loading="eager">`;
+    const vehicleLines = s.cars.map((c, i) => {
+      const selectedPackage = packages.find(p => p.id === c.packageId);
+      const choices = quoted.cars[i].lines.map(l =>
+        `<li><span>${esc(l.label)}</span><b>${fmt(l.cents)}</b></li>`).join('');
+      return `<section class="request-order-vehicle${i ? ' request-order-vehicle--additional' : ''}">
+        ${i ? `<div class="request-other-heading"><span class="request-overline">VEHICLE ${i + 1}</span><h3>${esc(carLabel(c))}</h3><p>${esc(selectedPackage?.name ?? 'Detail')} detail</p></div>`
+          : `<p class="request-overline request-services-label">YOUR SELECTED SERVICES</p>`}
+        <ul class="request-items">${choices}</ul>
+      </section>`;
+    }).join('');
+    const orderCard: OrderCardData = {
+      ref: data.ref,
+      when,
+      totalCents, depositCents, balanceCents,
+      vehicles: s.cars.map((c, i) => ({
+        name: carLabel(c),
+        packageName: packages.find(p => p.id === c.packageId)?.name ?? 'Detail',
+        plateUrl: vehicleStagePlateUrl(),
+        imageUrl: c.mesh ? vehicleStillUrl(c.mesh) : null,
+        lines: quoted.cars[i].lines.map(line => ({ label: line.label, cents: line.cents })),
+      })),
+    };
+    const list = s.cars.map((c, i) => {
+      const p = packages.find(p => p.id === c.packageId);
+      const extrasText = c.extraIds.map(id => extras.find(e => e.id === id)?.name).filter(Boolean);
+      return `Vehicle ${i + 1}: ${carLabel(c)}\nService: ${p?.name || 'Detail'}\nAdd-ons: ${extrasText.length ? extrasText.join(', ') : 'None'}`;
+    }).join('\n\n');
+    const calendarUrl = typeof data.calendarUrl === 'string' && data.calendarUrl.startsWith('https://')
+      ? data.calendarUrl : '';
+    const smsBody = [
+      'MIRROR FINISH — APPOINTMENT REQUEST',
+      'Reference: ' + data.ref,
+      'Customer: ' + s.name.trim(),
+      'Preferred: ' + when,
+      'Address: ' + address(),
+      '',
+      list,
+      '',
+      'SERVICE TOTAL: ' + fmt(totalCents),
+      'DEPOSIT AT CHECKOUT (20%): ' + fmt(depositCents),
+      'BALANCE DUE AFTER DETAIL: ' + fmt(balanceCents),
+      'CHARGED TODAY: $0.00',
+      'Status: Pending confirmation',
+      '',
+      'Please confirm availability and send payment instructions.',
+      ...(calendarUrl ? ['', 'FOR MIRROR FINISH — Add pending request to Google Calendar:', calendarUrl] : []),
+    ].join('\n');
+    const smsLink = SITE.phoneSms + '?body=' + encodeURIComponent(smsBody);
+    pay = 'idle';
+    $('app').innerHTML = `<section class="thanks wrap request-confirmation" role="status">
+      <p class="eyebrow">REQUEST RECEIVED · ${esc(data.ref)}</p>
+      <h1>Your detail is <em>one step closer.</em></h1>
+      <p class="lead">Here's your complete order. Your preferred time is awaiting confirmation; no payment was taken.</p>
+      <article id="request-order-card" class="request-receipt" aria-label="Mirror Finish order summary">
+        <div class="request-receipt-media" aria-hidden="true">
+          ${leadArt}
+        </div>
+        <div class="request-receipt-shade" aria-hidden="true"></div>
+        <div class="request-receipt-inner">
+          <header class="request-receipt-header">
+            <span class="request-brand">MIRROR FINISH <span>/ ORDER SUMMARY</span></span>
+            <span class="request-status">Awaiting confirmation</span>
+          </header>
+          <div class="request-receipt-content">
+            <p class="request-overline">VEHICLE 1 ${s.cars.length > 1 ? `/ ${s.cars.length} VEHICLES` : '/ YOUR DETAIL'}</p>
+            <h2 class="request-vehicle-title">${esc(carLabel(leadCar))}</h2>
+            <p class="request-service-title">${esc(leadPackage?.name ?? 'Detail')} detail</p>
+            <div class="request-receipt-meta" aria-label="Request details">
+              <span>REFERENCE <b>${esc(data.ref)}</b></span>
+              <span>REQUESTED <b>${esc(when)}</b></span>
+            </div>
+            ${vehicleLines}
+            <div class="request-price" aria-label="Price breakdown">
+              <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
+              <div class="request-deposit"><span>Deposit at checkout <small>20% · after confirmation</small></span><strong>${fmt(depositCents)}</strong></div>
+              <div><span>Remaining balance after detail</span><strong>${fmt(balanceCents)}</strong></div>
+              <div class="request-receipt-footer"><span>Charged today</span><b>$0.00</b></div>
+            </div>
+            <a class="request-receipt-cta" href="${smsLink}">
+              ${icon('phone', 20)} <span>Text my order to confirm</span> ${icon('arrow', 20)}
+            </a>
+            <p class="request-receipt-note">Appointment request only. No payment collected. We'll confirm your time and deposit instructions by text.</p>
+          </div>
+        </div>
+      </article>
+      <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
+      <div class="request-actions">
+        <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
+        <button id="share-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Share order card</span></button>
+      </div>
+      <p id="order-card-export-status" class="request-export-status" role="status" aria-live="polite"></p>
+      <p><a class="link" href="${HOME}">Back to the home page</a></p>
+      <p class="fine">Vehicle artwork illustrates the selected body style. Final pricing may be adjusted after vehicle inspection, as described in your agreement.</p>
+    </section>`;
+    // Render once while the customer reads the confirmation: on iOS the
+    // native share sheet must be triggered directly from a tap, rather than
+    // waiting for slow images to download after the user has tapped.
+    let imagePromise: Promise<Blob> | null = null;
+    const imageBlob = () => {
+      if (!imagePromise) {
+        imagePromise = renderOrderCardPng(orderCard).catch(error => {
+          imagePromise = null; throw error;
+        });
+      }
+      return imagePromise;
+    };
+    void imageBlob().catch(() => { /* Retry on user action if artwork was slow. */ });
+    const exportStatus = $('order-card-export-status');
+    const downloadButton = $<HTMLButtonElement>('download-order-card');
+    const shareButton = $<HTMLButtonElement>('share-order-card');
+    const exportCard = async (action: 'download' | 'share') => {
+      const button = action === 'download' ? downloadButton : shareButton;
+      button.disabled = true;
+      exportStatus.textContent = 'Preparing your order image…';
+      try {
+        const image = await imageBlob();
+        const name = cardFilename(data.ref);
+        if (action === 'download') {
+          downloadCardBlob(image, name);
+          exportStatus.textContent = 'Your order card PNG is ready to save.';
+        } else {
+          const result = await shareCardBlob(image, name, data.ref);
+          exportStatus.textContent = result === 'downloaded' ? 'Image downloaded. Share it from Photos or Files.'
+            : result === 'shared' ? 'Order card shared.' : '';
+        }
+      } catch {
+        exportStatus.textContent = 'Could not create the image. Please try again or use the text summary.';
+      } finally {
+        button.disabled = false;
+      }
+    };
+    downloadButton.addEventListener('click', () => { void exportCard('download'); });
+    shareButton.addEventListener('click', () => { void exportCard('share'); });
+    try { localStorage.removeItem(KEY); } catch {}
+    window.scrollTo({top:0});
+  } catch {
+    pay='unavailable'; render(true);
+  }
+}
+
 function payDeposit() {
+  if (LIVE && launchMode === 'request') { void requestLive(); return; }
   if (LIVE) { void payLive(); return; }
   pay = 'processing'; render();
   window.setTimeout(() => {
@@ -421,8 +650,8 @@ function bind() {
     else if (d.remove) { const i = Number(d.remove); s.cars.splice(i, 1); s.active = Math.min(s.active, s.cars.length - 1); s.date = ''; s.startMin = -1; render(); }
     else if (d.addcar !== undefined) { if (s.cars.length < MAX_CARS) { s.cars.push(newCar()); s.active = s.cars.length - 1; s.date = ''; s.startMin = -1; s.step = 1; render(true); } }
     else if (d.copy !== undefined) { const f = s.cars[0]; c.packageId = f.packageId; c.extraIds = [...f.extraIds]; render(); }
-    else if (d.pkg) { c.packageId = d.pkg; render(); }
-    else if (d.extra) { c.extraIds = c.extraIds.includes(d.extra) ? c.extraIds.filter((x) => x !== d.extra) : [...c.extraIds, d.extra]; render(); }
+    else if (d.pkg) { c.packageId = d.pkg; s.date = ''; s.startMin = -1; availability = null; render(); }
+    else if (d.extra) { c.extraIds = c.extraIds.includes(d.extra) ? c.extraIds.filter((x) => x !== d.extra) : [...c.extraIds, d.extra]; s.date = ''; s.startMin = -1; availability = null; render(); }
     else if (d.style) { const b = bodyStyles.find((x) => x.id === d.style)!; c.manualStyle = b.id; c.shape = b.shape; c.size = b.size; c.mesh = b.model; render(); }
     else if (d.date) { s.date = d.date; s.startMin = -1; slotLost = false; render(); }
     else if (d.start) { s.startMin = Number(d.start); slotLost = false; render(); }
@@ -497,7 +726,7 @@ async function recordAnswer(decision: 'accepted' | 'declined'): Promise<string |
   const res = await fetch(AGREEMENT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 409) throw Object.assign(new Error('stale'), { stale: true });
-  if (res.status === 503) return 'local'; // database not connected yet: checkout carries the acceptance in the Square note
+  if (res.status === 503) throw new Error('Booking storage is temporarily unavailable');
   if (!res.ok || !data.id) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data.id as string;
 }
@@ -534,26 +763,56 @@ async function onGateClick(e: Event) {
   }
 }
 
-/** Back from Square with ?paid=REF: restore the build that was paid for and show its Detail Pass. */
+/** A return parameter is NOT proof of payment; only the verified webhook confirmation is. */
+async function verifySquareReturn(ref: string, hasBuild: boolean) {
+  const fallback = `<section class="thanks wrap"><p class="eyebrow">Payment verification</p><h1>We're <em>checking.</em></h1><p class="lead">Your booking reference is ${esc(ref)}. We cannot confirm an appointment yet. Please text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> if you need help.</p><a class="btn" href="${HOME}">Back to the home page</a></section>`;
+  for (let tries = 0; tries < 4; tries++) {
+    try {
+      const u = new URL(STATUS_URL); u.searchParams.set('ref', ref);
+      const res = await fetch(u.toString(), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.confirmed === true) {
+        if (hasBuild) { confirmOrder(ref); return; }
+        $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1><p class="lead">Your appointment reference is ${esc(ref)}. Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with this reference if you need to change anything.</p><a class="btn" href="${HOME}">Back to the home page</a></section>`;
+        return;
+      }
+      if (res.ok && data.state === 'unrecognized') break;
+    } catch { /* network unavailable: show uncertainty, never a fake confirmation */ }
+    if (tries < 3) await new Promise<void>(resolve => setTimeout(resolve, 1500));
+  }
+  $('app').innerHTML = fallback;
+}
+/** Back from Square: restore the customer's build but do NOT confirm without server verification. */
 function returnFromSquare(): boolean {
   const ref = params.get('paid');
   if (!ref) return false;
   let pending: { ref: string; s: State } | null = null;
   try { pending = JSON.parse(localStorage.getItem(PENDING) ?? 'null'); } catch { /* ignore */ }
   history.replaceState(null, '', location.pathname);
-  if (pending?.ref === ref && Array.isArray(pending.s?.cars)) { s = { ...fresh(), ...pending.s }; confirmOrder(ref); return true; }
-  // Paid on another device or storage was cleared: Square's receipt is the record.
-  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Deposit received</p><h1>You're <em>booked.</em></h1>
-    <p class="lead">Your reference is ${esc(ref)}. Square has emailed your receipt. Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference if you need to change anything.</p>
-    <a class="btn" href="${HOME}">Back to the home page</a></section>`;
-  try { localStorage.removeItem(PENDING); } catch { /* ignore */ }
+  const hasBuild = pending?.ref === ref && Array.isArray(pending.s?.cars);
+  if (hasBuild && pending) s = { ...fresh(), ...pending.s };
+  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Checking payment</p><h1>Confirming your <em>appointment.</em></h1><p class="lead">Your reference is ${esc(ref)}. We will only confirm once Square has verified your deposit and appointment.</p></section>`;
+  void verifySquareReturn(ref, !!hasBuild);
   return true;
 }
 
-export function initBooking() {
-  if (returnFromSquare()) return;
+function startBooking() {
   bind();
   viewer = createStill($('viewer'));
   render(false);
   if (!agreed) openGate();
+}
+async function startWithReadinessCheck() {
+  try {
+    const res = await fetch(HEALTH_URL, { cache: 'no-store' });
+    launchMode = res.ok ? 'paid' : 'request';
+  } catch {
+    launchMode = 'request'; // Keep the custom builder usable; customer can text if the API is unavailable.
+  }
+  startBooking();
+}
+export function initBooking() {
+  if (returnFromSquare()) return;
+  if (LIVE) { void startWithReadinessCheck(); return; }
+  startBooking();
 }
