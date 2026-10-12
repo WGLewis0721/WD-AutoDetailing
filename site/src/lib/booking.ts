@@ -8,6 +8,7 @@ import { SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, lineAmount } from './displ
 import { createStill, vehicleStillUrl, vehicleStagePlateUrl, type Still } from './stills';
 import { renderOrderCardPng, downloadCardBlob, shareCardBlob, cardFilename, type OrderCardData } from './order-card';
 import { AGREEMENT, agreementHash } from '../data/agreement';
+import type { ChecklistFill } from './checklist-fill';
 
 interface Car {
   year: string; make: string; model: string; shape: Shape | null; size: SizeId | null; mesh: ModelKey | null;
@@ -85,7 +86,44 @@ const demo = params.get('demo');
 
 const HOME = document.getElementById('app')?.dataset.home ?? '/';
 const CHECKLIST = document.getElementById('app')?.dataset.checklist ?? '/Mirror-Finish-Service-Checklist.pdf';
-const checklistLink = () => `<a class="btn btn--ghost" href="${CHECKLIST}" download>${icon('download', 18)}<span>Download checklist (PDF)</span></a>`;
+/** The order the checklist is filled in with; set when a confirmation screen is shown. */
+let checklistOrder: ChecklistFill | null = null;
+const checklistLink = () => `<a class="btn btn--ghost" href="${CHECKLIST}" download data-checklist-fill>${icon('download', 18)}<span>Download your checklist (PDF)</span></a>`;
+const checklistFor = (ref: string): ChecklistFill => ({
+  customer: s.name.trim(), when: whenLabel(), ref,
+  vehicles: s.cars.map((c) => ({ label: carLabel(c), packageId: c.packageId, extraIds: c.extraIds })),
+});
+
+let checklistWired = false;
+/** The checklist button downloads the real checklist PDF with this order filled in at the top (nothing leaves the browser).
+    If that fails for any reason, or there is no order yet, the plain checklist downloads instead. */
+function wireChecklist() {
+  if (checklistWired) return;
+  checklistWired = true;
+  document.addEventListener('click', async (e) => {
+    const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-checklist-fill]');
+    if (!link || !checklistOrder) return;
+    e.preventDefault();
+    const label = link.querySelector('span');
+    const before = label?.textContent ?? '';
+    link.setAttribute('aria-busy', 'true');
+    if (label) label.textContent = 'Preparing your checklist…';
+    try {
+      const res = await fetch(CHECKLIST);
+      if (!res.ok) throw Error('Checklist template unavailable');
+      const { fillChecklist, checklistFilename } = await import('./checklist-fill');
+      const bytes = await fillChecklist(await res.arrayBuffer(), checklistOrder);
+      downloadCardBlob(new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }), checklistFilename(checklistOrder.ref));
+    } catch {
+      const plain = document.createElement('a');
+      plain.href = CHECKLIST; plain.download = '';
+      plain.click();
+    } finally {
+      link.removeAttribute('aria-busy');
+      if (label) label.textContent = before;
+    }
+  });
+}
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ } };
@@ -504,6 +542,7 @@ async function requestLive() {
     ].join('\n');
     const smsLink = SITE.phoneSms + '?body=' + encodeURIComponent(smsBody);
     pay = 'idle';
+    checklistOrder = checklistFor(data.ref);
     $('app').innerHTML = `<section class="thanks wrap request-confirmation" role="status">
       <p class="eyebrow">REQUEST RECEIVED · ${esc(data.ref)}</p>
       <h1>Your detail is <em>one step closer.</em></h1>
@@ -624,6 +663,7 @@ function confirmOrder(paidRef?: string) {
   const first = s.cars[0];
   const ics = icsFile();
   /* TODO: client to supply the cancellation and reschedule policy. Until then the page only says how to reach us. */
+  checklistOrder = checklistFor(ref);
   $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1>
     <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. ${paidRef ? 'Square is emailing your receipt' : 'We will send your confirmation'} to ${esc(s.email)}.</p>
     <div class="passwrap"><article class="pass" style="background-image:linear-gradient(var(--scrim-dark),var(--scrim-dark-strong)),url('${art}')">
@@ -818,6 +858,7 @@ async function startWithReadinessCheck() {
   startBooking();
 }
 export function initBooking() {
+  wireChecklist();
   if (returnFromSquare()) return;
   if (LIVE) { void startWithReadinessCheck(); return; }
   startBooking();

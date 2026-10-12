@@ -206,3 +206,19 @@ database not connected)" into the Square payment note; the build is not saved. O
   appointment, not the deposit, moves to a new date. Every customer is asked to accept the new version on their next
   visit, and the server rejects answers recorded against 1.0.0. These are the owner's terms, so edit the wording in
   `site/src/data/agreement.ts` if needed (bump the version again if it changes).
+
+## Round 12: the checklist is filled in with the customer's own order (2026-10-12)
+
+- On the "request received" screen and the Detail Pass, the button now reads "Download your checklist (PDF)". It fetches the
+  real checklist PDF and fills the top in **in the browser** (nothing is sent anywhere): customer name, vehicle, the
+  requested time, the order number, and a check in the package and add-on boxes they chose. An order with several
+  vehicles gets a checklist per vehicle (two pages each, tagged "VEHICLE 2 OF 3"). The file is named
+  `Mirror-Finish-Checklist-<ref>.pdf`. The Detailer line and everything on page 2 stay blank for you to complete.
+- If anything fails (offline, library blocked) the blank checklist downloads instead. The home page button still gives the
+  blank checklist.
+- How it works: `npm run checklist` builds the blank PDF **and** writes `src/data/checklist-layout.json`, the exact position
+  of each field and box (read from the page it prints). `src/lib/checklist-fill.ts` draws onto those positions with `pdf-lib`,
+  which is a lazy chunk (about 420 KB) fetched only when the button is clicked. If the checklist design or wording changes,
+  re-run `npm run checklist` and commit the PDF, `checklist.hash` and `checklist-layout.json` together; `checklist-fill.test.ts`
+  fails if a package or add-on has no box in the layout or the layout is out of date. Characters the PDF's standard font
+  cannot print (emoji, non-Latin scripts) are left out of the filled text.

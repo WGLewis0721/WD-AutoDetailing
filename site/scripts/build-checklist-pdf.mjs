@@ -14,16 +14,17 @@ import { AGREEMENT } from '../src/data/agreement.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'public', 'Mirror-Finish-Service-Checklist.pdf');
 const HASH = join(root, 'src', 'data', 'checklist.hash');
+const LAYOUT = join(root, 'src', 'data', 'checklist-layout.json');
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const font = (pkg, file) => readFileSync(join(root, 'node_modules', pkg, 'files', file)).toString('base64');
 const tokens = [...readFileSync(join(root, 'src/styles/tokens.css'), 'utf8').matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => `${m[1]}:${m[2]}`).join(';');
 
-const box = '<span class="box"></span>';
+const box = (id) => `<span class="box"${id ? ` data-pick="${id}"` : ''}></span>`;
 const rows = (items) => items.map((t) => `<li><span class="task">${esc(t)}</span></li>`).join('');
 const section = (s) => `<section class="sec"><header><div><h3>${esc(s.title)}</h3><p>${esc(s.note)}</p></div></header><ul>${rows(s.items)}</ul></section>`;
-const pick = (label) => `<span class="pick">${box}${esc(label)}</span>`;
-const line = (label) => `<div class="field"><span>${label}</span><i></i></div>`;
+const pick = (label, id) => `<span class="pick">${box(id)}${esc(label)}</span>`;
+const line = (label, id) => `<div class="field"><span>${label}</span><i${id ? ` data-field="${id}"` : ''}></i></div>`;
 
 const interior = checklist.packageSections.find((s) => s.id === 'interior');
 const exterior = checklist.packageSections.find((s) => s.id === 'exterior');
@@ -40,7 +41,8 @@ html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{font-family:'Manrope',sans-serif;color:var(--black);background:var(--ivory);font-size:10pt;line-height:1.35;word-spacing:.07em}
 .page{width:8.5in;height:11in;position:relative;overflow:hidden;page-break-after:always;background:var(--ivory)}
 .page:last-child{page-break-after:auto}
-.band{background:var(--black);color:var(--white);padding:.4in .6in .3in}
+.band{background:var(--black);color:var(--white);padding:.4in .6in .3in;position:relative}
+.refslot{position:absolute;right:.6in;top:.95in;width:3.4in;height:.25in}
 .brand{display:flex;justify-content:space-between;align-items:baseline;font-size:8pt;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
 .brand b{font-weight:700}.brand span{color:var(--muted-on-dark);letter-spacing:.12em}
 h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:40pt;line-height:1;margin-top:.16in}
@@ -48,7 +50,7 @@ h1 em{color:var(--gold-hi)}
 .lead{color:var(--muted-on-dark);margin-top:.08in;max-width:5.6in;font-size:10.5pt}
 .rule{height:3px;background:var(--gold)}
 .body{padding:.22in .6in 0}
-.fields{display:grid;grid-template-columns:1.2fr 1.2fr .8fr .8fr;gap:.2in}
+.fields{display:grid;grid-template-columns:1.15fr 1.35fr 1.1fr .8fr;gap:.2in}
 .field span{display:block;font-size:7pt;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .field i{display:block;border-bottom:1px solid var(--black);height:.26in}
 .booked{margin-top:.16in;padding:.1in .16in;background:var(--white);border:1px solid var(--line-light);border-radius:10px;display:grid;grid-template-columns:auto 1fr;gap:.06in .16in;align-items:center}
@@ -80,11 +82,11 @@ h1 em{color:var(--gold-hi)}
 <div class="page">
   <div class="band"><div class="brand"><b>Mirror Finish</b><span>Mobile Detailing · Montgomery, AL</span></div>
     <h1>Service <em>checklist</em></h1>
-    <p class="lead">One list for both of us: every service we perform on your vehicle, item by item.</p></div>
+    <p class="lead">One list for both of us: every service we perform on your vehicle, item by item.</p><div class="refslot" data-slot="ref"></div></div>
   <div class="rule"></div>
   <div class="body">
-    <div class="fields">${line('Customer')}${line('Vehicle')}${line('Date')}${line('Detailer')}</div>
-    <div class="booked"><b>Package</b><div>${packages.map((p) => pick(p.name)).join('')}</div><b>Add-ons</b><div>${extras.map((e) => pick(e.name)).join('')}</div></div>
+    <div class="fields">${line('Customer', 'customer')}${line('Vehicle', 'vehicle')}${line('Date', 'date')}${line('Detailer', 'detailer')}</div>
+    <div class="booked"><b>Package</b><div>${packages.map((p) => pick(p.name, p.id)).join('')}</div><b>Add-ons</b><div>${extras.map((e) => pick(e.name, e.id)).join('')}</div></div>
     <p class="legend">Deluxe includes everything in both the Interior and Exterior details. Add-on services are on page 2.</p>
     ${section(interior)}
     ${section(exterior)}
@@ -116,7 +118,28 @@ const page = await browser.newPage();
 await page.setContent(html, { waitUntil: 'load' });
 await page.evaluate(() => document.fonts.ready);
 await page.emulateMedia({ media: 'print' });
+
+// Where the fillable spots sit on page 1, in PDF points from the bottom-left (Letter is 612 x 792 pt; 1 CSS px = 0.75 pt).
+// The browser fills these in on the real PDF when a customer downloads their own checklist.
+const spots = await page.evaluate(() => {
+  const first = document.querySelector('.page').getBoundingClientRect();
+  const read = (el) => { const r = el.getBoundingClientRect(); return { left: r.left - first.left, top: r.top - first.top, width: r.width, height: r.height }; };
+  const pick = (attr) => Object.fromEntries([...document.querySelectorAll(`[${attr}]`)].map((el) => [el.getAttribute(attr), read(el)]));
+  return { fields: pick('data-field'), picks: pick('data-pick'), slots: pick('data-slot'), pageHeight: first.height };
+});
+const PT = 0.75, PAGE_H = 792;
+const toPt = (r) => ({ x: +(r.left * PT).toFixed(2), y: +(PAGE_H - (r.top + r.height) * PT).toFixed(2), w: +(r.width * PT).toFixed(2), h: +(r.height * PT).toFixed(2) });
+const mapSpots = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, toPt(v)]));
+const tokenColor = (name) => { const hex = tokens.match(new RegExp(`--${name}:\\s*#([0-9a-fA-F]{6})`))?.[1]; if (!hex) throw Error(`token --${name} is not a 6-digit hex`); return [0, 2, 4].map((i) => +(parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(4)); };
+const layout = {
+  _note: 'Generated by scripts/build-checklist-pdf.mjs (npm run checklist). Do not edit by hand.',
+  content: checklistFingerprint(),
+  page: { w: 612, h: 792 },
+  colors: Object.fromEntries(['black', 'gold-deep', 'gold-hi', 'muted'].map((n) => [n.replace(/-./g, (m) => m[1].toUpperCase()), tokenColor(n)])),
+  fields: mapSpots(spots.fields), picks: mapSpots(spots.picks), slots: mapSpots(spots.slots),
+};
+writeFileSync(LAYOUT, JSON.stringify(layout, null, 1) + '\n');
 await page.pdf({ path: OUT, format: 'Letter', printBackground: true, preferCSSPageSize: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
 await browser.close();
 writeFileSync(HASH, checklistFingerprint() + '\n');
-console.log('wrote', OUT, 'and', HASH);
+console.log('wrote', OUT, HASH, 'and', LAYOUT);
