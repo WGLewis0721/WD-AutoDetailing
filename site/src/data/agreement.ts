@@ -3,15 +3,15 @@
    and the server refuses answers given to an older version, so each record proves what the customer saw. */
 
 export const AGREEMENT = {
-  version: '1.0.0',
+  version: '1.1.0',
   title: 'Service Agreement & Waiver',
   business: 'Mirror Finish Mobile Detailing',
   clauses: [
     'I authorize Mirror Finish Mobile Detailing to perform the selected detailing services on my vehicle.',
     'Mirror Finish is not liable for pre-existing damage. We document the vehicle’s condition before service begins.',
-    'A 20% deposit is required to secure the appointment. The deposit is non-refundable. The remaining balance is due when the service is complete.',
-    'Cancellations made less than 24 hours before the appointment forfeit the deposit. Reschedules with 24 hours’ notice or more carry the deposit forward to the new date.',
-    'If weather requires a reschedule, you will be notified at least 24 hours in advance, and your full deposit moves to the new date.',
+    'Payment for the selected services is due when the service is complete.',
+    'Please give at least 24 hours’ notice if you need to cancel or reschedule, so we can offer your time to another customer.',
+    'If weather requires a reschedule, you will be notified at least 24 hours in advance, and your appointment will move to a new date that works for you.',
     'Please remove personal valuables from the vehicle before service. Mirror Finish is not responsible for lost or missing items.',
     'We stand behind our work with a satisfaction guarantee. If you are not satisfied, contact us within 24 hours and we will make it right at no additional charge.',
   ],

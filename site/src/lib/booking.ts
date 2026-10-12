@@ -4,7 +4,7 @@ import { bodyStyles, makes, modelsFor, years, type ModelKey, type Shape } from '
 import { MAX_CARS, fmt, quoteOrder, readiness, type Selection } from './pricing';
 import { dayState, hourLabel, iso, slotsFor, type DayState } from './schedule';
 import { icon } from './icons';
-import { SHOW_DEPOSIT, SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, lineAmount } from './display';
+import { SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, lineAmount } from './display';
 import { createStill, vehicleStillUrl, vehicleStagePlateUrl, type Still } from './stills';
 import { renderOrderCardPng, downloadCardBlob, shareCardBlob, cardFilename, type OrderCardData } from './order-card';
 import { AGREEMENT, agreementHash } from '../data/agreement';
@@ -18,7 +18,7 @@ interface State {
   date: string; startMin: number; month: string;
   city: string; name: string; phone: string; email: string; street: string; zip: string; notes: string; agree: boolean;
 }
-/** Payment outcomes on the deposit step. 'unavailable' = the checkout function could not open Square (nothing charged).
+/** Payment outcomes on the review step. 'unavailable' = the checkout function could not open Square (nothing charged).
     Preview mode (no PUBLIC_CHECKOUT_URL at build time) simulates the others with ?demo=declined or ?demo=taken. */
 type Pay = 'idle' | 'processing' | 'declined' | 'unavailable';
 
@@ -103,7 +103,6 @@ const textUs = (label: string) => `<a class="link" href="${SITE.phoneSms}">${lab
 let viewer: Still | null = null;
 let errors: Record<string, string> = {};
 let lastTotal = 0;
-let lastDeposit = 0;
 let pay: Pay = 'idle';
 let availability: { date: string; pkg: string; starts: number[]; loading: boolean; error: string } | null = null;
 async function loadAvailability() {
@@ -250,7 +249,7 @@ function panelWhen(): string {
     if (launchMode === 'paid' && LIVE && (s.cars.length !== 1 || s.cars[0].extraIds.length > 0)) {
       slotsHtml = '<p class="note">Multi-car or add-on bookings need manual scheduling. Please text us to arrange your time.</p>';
     } else if (preferenceOnly) {
-      slotsHtml = '<p class="note">Choose your preferred time. Multi-vehicle and add-on availability will be confirmed personally before any deposit is requested.</p>' + grp('Preferred morning', all.filter((x) => x.startMin < 720)) + grp('Preferred afternoon', all.filter((x) => x.startMin >= 720));
+      slotsHtml = '<p class="note">Choose your preferred time. Multi-vehicle and add-on availability will be confirmed personally.</p>' + grp('Preferred morning', all.filter((x) => x.startMin < 720)) + grp('Preferred afternoon', all.filter((x) => x.startMin >= 720));
     } else if (LIVE && availability?.loading) {
       slotsHtml = '<p class="muted hint" role="status">Checking available appointment times…</p>';
     } else if (LIVE && availability?.error) {
@@ -298,23 +297,23 @@ function whenLabel(): string {
   return new Date(s.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + hourLabel(s.startMin);
 }
 
-function panelDeposit(): string {
+function panelReview(): string {
   const o = order();
   const rows = s.cars.map((c, i) => {
     const p = packages.find((x) => x.id === c.packageId);
     const ex = c.extraIds.map((id) => esc(extras.find((e) => e.id === id)?.name ?? '')).join(', ');
     return `<tr><th>Car ${i + 1}</th><td><b>${esc(carLabel(c))}</b><small>${esc(p?.name ?? '')}${ex ? ' + ' + ex : ''}</small></td></tr>`;
   }).join('');
-  const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The deposit did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
+  const declined = pay === 'declined' ? `<div class="errsum" role="alert"><b>The payment did not go through.</b> Nothing was charged and your time is not booked yet. Try again, or ${textUs('text us')} and we will book it with you.</div>`
     : pay === 'unavailable' ? `<div class="errsum" role="alert"><b>${launchMode === 'request' ? 'We could not submit your request.' : 'We could not open the secure checkout.'}</b> Nothing was charged. Try again, or ${textUs('text us')} to arrange your appointment.</div>` : '';
   return `<h2 tabindex="-1">Review and <em>book</em></h2>${declined}
     <div class="card box"><table class="rev"><tbody>${rows}<tr><th>When</th><td>${whenLabel()}</td></tr><tr><th>Where</th><td>${esc(address())}</td></tr>
     ${s.notes.trim() ? `<tr><th>Notes</th><td class="wrapt">${esc(s.notes.trim())}</td></tr>` : ''}
-    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr>${SHOW_DEPOSIT ? `<tr><th>${launchMode === 'request' ? 'Deposit due after confirmation (20%)' : 'Deposit today (20%)'}</th><td>${fmt(o.depositCents)}</td></tr><tr><th>Due after the detail</th><td>${fmt(o.balanceCents)}</td></tr>` : ''}</tbody></table></div>
+    <tr class="sumr"><th>Total</th><td>${fmt(o.totalCents)}</td></tr></tbody></table></div>
     ${utilityNotice()}
     <label class="agree"><input type="checkbox" id="agree" ${s.agree ? 'checked' : ''}> <span>I understand the final price may vary with vehicle condition and size after inspection, and that I will provide accessible water and electricity at the service location.</span></label>
     <p class="agreed muted">${icon('shield', 16)} You accepted the <button type="button" class="link" data-terms>Service Agreement</button>${agreed ? ' on ' + new Date(agreed.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : ''}.</p>
-    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time before collecting the deposit.' : `Square will collect ${SHOW_DEPOSIT ? 'the 20% deposit' : 'your deposit'} securely after you continue.`}</p>`;
+    <p class="note">${launchMode === 'request' ? 'No charge today. We will confirm your preferred appointment time with you.' : 'Square will collect your payment securely after you continue.'}</p>`;
 }
 
 /* ---------- summary ---------- */
@@ -342,13 +341,11 @@ function summary() {
   const where = inArea() ? `<div class="ln sub"><span>Where</span><b>${esc(s.city)}, ${SITE.region}</b></div>` : '';
   const when = s.date && s.startMin >= 0 ? `<div class="ln sub"><span>When</span><b>${whenLabel()}</b></div>` : '';
   $('summary').innerHTML = `<div class="sumhead"><span>Your order</span><b>${rd}% ready</b></div><div class="meter" aria-hidden="true"><i style="width:${rd}%"></i></div>${groups}${where}${when}
-    <div class="ln tot"><span>Total</span><b class="num" id="grand">${fmt(lastTotal)}</b></div>
-    ${SHOW_DEPOSIT ? `<div class="ln"><span>${launchMode === 'request' ? 'Deposit after confirmation (20%)' : 'Deposit today (20%)'}</span><b class="num" id="dep">${fmt(lastDeposit)}</b></div><div class="ln"><span>Due after the detail</span><b class="num">${fmt(o.balanceCents)}</b></div>` : ''}`;
+    <div class="ln tot"><span>Total</span><b class="num" id="grand">${fmt(lastTotal)}</b></div>`;
   tween($('grand'), lastTotal, o.totalCents);
-  if (SHOW_DEPOSIT) tween($('dep'), lastDeposit, o.depositCents);
-  const mnote = [SHOW_DEPOSIT ? `${fmt(o.depositCents)} ${launchMode === 'request' ? 'after confirmation' : 'today'}` : '', s.cars.length > 1 ? s.cars.length + ' cars' : ''].filter(Boolean).join(' · ');
+  const mnote = s.cars.length > 1 ? s.cars.length + ' cars' : '';
   $('mtotal').innerHTML = o.totalCents ? `<b class="num">${fmt(o.totalCents)}</b>${mnote ? `<small>${mnote}</small>` : ''}` : '<small>Build your order</small>';
-  lastTotal = o.totalCents; lastDeposit = o.depositCents;
+  lastTotal = o.totalCents;
 }
 
 function progress() {
@@ -362,13 +359,13 @@ function progress() {
 
 function render(focus = false) {
   progress();
-  const panels = [panelVehicle, panelBuild, panelWhen, panelDetails, panelDeposit];
+  const panels = [panelVehicle, panelBuild, panelWhen, panelDetails, panelReview];
   const panel = $('panel');
   panel.innerHTML = panels[s.step - 1]();
   if (focus) { panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter'); panel.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true }); }
   const o = order();
   const busy = pay === 'processing';
-  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : `${pay === 'declined' ? 'Try again: pay' : 'Pay'}${SHOW_DEPOSIT ? ' ' + fmt(o.depositCents) : ''} deposit to book`) : s.step === 4 ? 'Review order' : 'Continue';
+  const label = busy ? 'Processing…' : s.step === 5 ? (launchMode === 'request' ? 'Request appointment — no charge' : (pay === 'declined' ? 'Try again: pay to book' : 'Pay to book')) : s.step === 4 ? 'Review order' : 'Continue';
   const ok = s.step === 4 ? true : valid(s.step);
   for (const id of ['next', 'mnext']) { const b = $(id); b.innerHTML = `<span>${id === 'mnext' && s.step < 5 ? 'Next' : label}</span>${busy ? '' : icon('arrow', 18)}`; b.toggleAttribute('disabled', !ok); b.setAttribute('aria-busy', String(busy)); }
   $('back').toggleAttribute('hidden', s.step === 1);
@@ -393,7 +390,7 @@ function go(step: number) { s.step = step; if (step !== 3) slotLost = false; if 
 function next() {
   if (s.step === 4 && !valid(4)) { render(); document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(); return; }
   if (!valid(s.step)) return;
-  if (s.step === 5) { payDeposit(); return; }
+  if (s.step === 5) { payNow(); return; }
   go(s.step + 1);
 }
 
@@ -498,12 +495,11 @@ async function requestLive() {
       list,
       '',
       'SERVICE TOTAL: ' + fmt(totalCents),
-      ...(SHOW_DEPOSIT ? ['DEPOSIT AT CHECKOUT (20%): ' + fmt(depositCents), 'BALANCE DUE AFTER DETAIL: ' + fmt(balanceCents)] : []),
       'CHARGED TODAY: $0.00',
       'Water and electricity: customer will provide accessible water and power at the service location.',
       'Status: Pending confirmation',
       '',
-      'Please confirm availability and send payment instructions.',
+      'Please confirm availability.',
       ...(calendarUrl ? ['', 'FOR MIRROR FINISH — Add pending request to Google Calendar:', calendarUrl] : []),
     ].join('\n');
     const smsLink = SITE.phoneSms + '?body=' + encodeURIComponent(smsBody);
@@ -533,18 +529,16 @@ async function requestLive() {
             ${vehicleLines}
             <div class="request-price" aria-label="Price breakdown">
               <div><span>Service total</span><strong>${fmt(totalCents)}</strong></div>
-              ${SHOW_DEPOSIT ? `<div class="request-deposit"><span>Deposit at checkout <small>20% · after confirmation</small></span><strong>${fmt(depositCents)}</strong></div>
-              <div><span>Remaining balance after detail</span><strong>${fmt(balanceCents)}</strong></div>` : ''}
               <div class="request-receipt-footer"><span>Charged today</span><b>$0.00</b></div>
             </div>
             <a class="request-receipt-cta" href="${smsLink}">
               ${icon('phone', 20)} <span>Text my order to confirm</span> ${icon('arrow', 20)}
             </a>
-            <p class="request-receipt-note">Appointment request only. No payment collected. We'll confirm your time and deposit instructions by text.</p>
+            <p class="request-receipt-note">Appointment request only. No payment collected. We'll confirm your time by text.</p>
           </div>
         </div>
       </article>
-      <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time and receive deposit instructions.</p>
+      <p class="note">This is a request, not a confirmed appointment. Text your order summary to Mirror Finish to finalize the time.</p>
       ${utilityNotice()}
       <div class="request-actions">
         <button id="download-order-card" class="btn btn--ghost" type="button">${icon('arrow', 18)}<span>Download order card</span></button>
@@ -601,7 +595,7 @@ async function requestLive() {
   }
 }
 
-function payDeposit() {
+function payNow() {
   if (LIVE && launchMode === 'request') { void requestLive(); return; }
   if (LIVE) { void payLive(); return; }
   pay = 'processing'; render();
@@ -631,11 +625,11 @@ function confirmOrder(paidRef?: string) {
   const ics = icsFile();
   /* TODO: client to supply the cancellation and reschedule policy. Until then the page only says how to reach us. */
   $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Booking confirmed</p><h1>You're <em>booked.</em></h1>
-    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. ${paidRef ? 'Square is emailing your deposit receipt' : 'We will send your confirmation'} to ${esc(s.email)}.</p>
+    <p class="lead">${esc(s.name.split(' ')[0])}, your ${s.cars.length > 1 ? s.cars.length + '-car order is' : 'detail is'} set. ${paidRef ? 'Square is emailing your receipt' : 'We will send your confirmation'} to ${esc(s.email)}.</p>
     <div class="passwrap"><article class="pass" style="background-image:linear-gradient(var(--scrim-dark),var(--scrim-dark-strong)),url('${art}')">
       <header><b>DETAIL PASS</b><span>${ref}</span></header><ul class="plist">${list}</ul>
       <p class="pwhen">${icon('calendar', 16)} ${when}</p><p class="pwhen">${icon('pin', 16)} ${esc(address())}</p>
-      <footer>${SHOW_DEPOSIT ? `<span>Deposit paid ${fmt(o.depositCents)}</span><span>Due after ${fmt(o.balanceCents)}</span>` : `<span>Total ${fmt(o.totalCents)}</span>`}</footer></article>
+      <footer><span>Total ${fmt(o.totalCents)}</span></footer></article>
       <div class="side2"><div class="card reward"><em>${icon('gift', 16)} Your reward</em><h3>${REWARD.title}</h3><p class="muted">${REWARD.body}</p></div>
         <div class="card"><em>${icon('phone', 16)} Need to change something?</em><p>Text <a href="${SITE.phoneSms}">${SITE.phoneDisplay}</a> with your reference ${ref} to move or cancel your detail.</p></div>
         <div class="card"><em>While you wait</em><p>${TIPS[first.shape ?? 'sedan']}</p></div>
@@ -803,7 +797,7 @@ function returnFromSquare(): boolean {
   history.replaceState(null, '', location.pathname);
   const hasBuild = pending?.ref === ref && Array.isArray(pending.s?.cars);
   if (hasBuild && pending) s = { ...fresh(), ...pending.s };
-  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Checking payment</p><h1>Confirming your <em>appointment.</em></h1><p class="lead">Your reference is ${esc(ref)}. We will only confirm once Square has verified your deposit and appointment.</p></section>`;
+  $('app').innerHTML = `<section class="thanks wrap"><p class="eyebrow">Checking payment</p><h1>Confirming your <em>appointment.</em></h1><p class="lead">Your reference is ${esc(ref)}. We will only confirm once Square has verified your payment and appointment.</p></section>`;
   void verifySquareReturn(ref, !!hasBuild);
   return true;
 }

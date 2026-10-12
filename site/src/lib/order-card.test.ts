@@ -15,19 +15,10 @@ const card: OrderCardData = {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('shareable order card PNG', () => {
-  it('uses an order-specific filename and keeps the deposit and balance hidden from the card while they are hidden', () => {
+  it('uses an order-specific filename and lists only the service total and what is charged today', () => {
     expect(cardFilename(card.ref)).toBe('mirror-finish-order-MF-ABC12345.png');
     expect(cardTotals(card)).toEqual([
       { label: 'Service total', amount: '$325.00' },
-      { label: 'Charged today', amount: '$0.00' },
-    ]);
-  });
-
-  it('still computes the exact 20% deposit and balance when they are switched back on', () => {
-    expect(cardTotals(card, true)).toEqual([
-      { label: 'Service total', amount: '$325.00' },
-      { label: 'Deposit at checkout (20%)', amount: '$65.00' },
-      { label: 'Remaining balance after detail', amount: '$260.00' },
       { label: 'Charged today', amount: '$0.00' },
     ]);
   });
@@ -67,9 +58,9 @@ describe('shareable order card PNG', () => {
     expect(labels).toContain('Friday, October 30 at 2:00 PM');
     expect(labels).toContain('Headlight Restoration');
     expect(labels).toContain('$325.00');
-    expect(labels).not.toContain('$65.00'); // deposit hidden
-    expect(labels).not.toContain('$260.00'); // so is the balance, which would give it away
-    expect(labels).not.toContain('DEPOSIT AT CHECKOUT');
+    expect(labels).not.toContain('$65.00');
+    expect(labels).not.toContain('$260.00');
+    expect(labels.join(' ')).not.toMatch(/deposit/i);
     expect(labels).toContain('AWAITING CONFIRMATION');
     expect(labels).toContain('TEXT MY ORDER TO CONFIRM');
     expect(gradientStops.length).toBeGreaterThanOrEqual(4);

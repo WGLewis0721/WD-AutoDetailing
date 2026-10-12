@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { SITE } from '../data/site';
 import { sizes } from '../data/menu';
-import { SHOW_DEPOSIT, SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, isSizeLine, lineAmount } from './display';
+import { SHOW_SIZE_PRICES, SIZE_INCLUDED, hiddenSize, isSizeLine, lineAmount } from './display';
 import { quote } from './pricing';
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 describe('what customers are shown about money', () => {
-  it('hides the deposit and the per-size prices by default, and the switches are plain booleans', () => {
-    expect(SITE.display).toEqual({ deposit: false, sizePrices: false });
-    expect(SHOW_DEPOSIT).toBe(false);
+  it('hides the per-size prices by default, and the switch is a plain boolean', () => {
+    expect(SITE.display).toEqual({ sizePrices: false });
     expect(SHOW_SIZE_PRICES).toBe(false);
   });
 
@@ -29,7 +28,7 @@ describe('what customers are shown about money', () => {
     expect(hiddenSize(size, true)).toBe(false);
   });
 
-  it('never changes what is charged: totals still include the size charge and the deposit math is intact', () => {
+  it('never changes what is charged: totals still include the size charge', () => {
     const q = quote({ packageId: 'deluxe', sizeId: 'large', extraIds: [] });
     expect(q.totalCents).toBe(7500 + 6000);
     expect(q.depositCents + q.balanceCents).toBe(q.totalCents);

@@ -67,8 +67,6 @@ export function googleCalendarDraft(row: CalendarRequestRow): string {
     'Email: ' + row.email,
     vehicles,
     'Total: ' + money(row.total_cents),
-    'Deposit due after confirmation (20%): ' + money(row.deposit_cents),
-    'Remaining balance after detailing: ' + money(row.balance_cents),
     pending ? 'No payment was collected by the booking request form.' : '',
     row.notes ? 'Notes: ' + row.notes : '',
   ].filter(Boolean).join('\n');

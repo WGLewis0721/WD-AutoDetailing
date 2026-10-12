@@ -12,18 +12,12 @@ export interface OrderCardData {
   totalCents: number; depositCents: number; balanceCents: number;
 }
 
-import { SHOW_DEPOSIT } from './display';
 
 export const cardFilename = (ref: string) =>
   'mirror-finish-order-' + (ref.match(/^MF-[A-Z0-9]{8}$/)?.[0] || 'request') + '.png';
 export const cardMoney = (cents: number) => '$' + (cents / 100).toFixed(2);
-/** The deposit and the balance are shown together or not at all (the balance would give the deposit away). */
-export const cardTotals = (data: OrderCardData, showDeposit: boolean = SHOW_DEPOSIT) => [
+export const cardTotals = (data: OrderCardData) => [
   { label: 'Service total', amount: cardMoney(data.totalCents) },
-  ...(showDeposit ? [
-    { label: 'Deposit at checkout (20%)', amount: cardMoney(data.depositCents) },
-    { label: 'Remaining balance after detail', amount: cardMoney(data.balanceCents) },
-  ] : []),
   { label: 'Charged today', amount: '$0.00' },
 ];
 
@@ -180,17 +174,6 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   y += 51;
   label('Service total', PAD, y, 28, color.muted);
   right(cardMoney(data.totalCents), y, 36);
-  if (SHOW_DEPOSIT) {
-    y += 72;
-    label('DEPOSIT AT CHECKOUT', PAD, y, 23, color.goldHi, true);
-    ctx.textAlign = 'right';
-    serif(cardMoney(data.depositCents), WIDTH - PAD, y + 20, 57, color.goldHi);
-    ctx.textAlign = 'left';
-    label('20% · after confirmation', PAD, y + 35, 20, color.muted);
-    y += 91;
-    label('Remaining balance after detail', PAD, y, 25, color.muted);
-    right(cardMoney(data.balanceCents), y, 32);
-  }
   y += 42; rule(y);
   y += 50;
   label('Charged today', PAD, y, 23, color.muted);
@@ -209,7 +192,7 @@ export async function renderOrderCardPng(data: OrderCardData): Promise<Blob> {
   y += pillH + 49;
   label('REQUEST ONLY  ·  NO PAYMENT COLLECTED', PAD, y, 19, color.muted, true);
   y += 28;
-  label('Appointment and deposit instructions require confirmation.', PAD, y, 19, color.muted);
+  label('Your appointment time requires confirmation.', PAD, y, 19, color.muted);
 
   if (y + 30 > maxHeight) throw Error('Order card layout exceeds export size');
   const output = document.createElement('canvas');

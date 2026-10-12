@@ -191,3 +191,18 @@ database not connected)" into the Square payment note; the build is not saved. O
   on the Details step under the address, on the Review step, and on the request-received screen. The review checkbox now
   also reads "...and that I will provide accessible water and electricity at the service location", the text-message
   summary carries the same line, and the home page FAQ has "What do I need to provide?".
+
+## Round 11: the word "deposit" removed everywhere (2026-10-12)
+
+- No customer-facing text says "deposit" any more: booking flow (including the paid-checkout error, button and receipt
+  wording), request screen, text-message summary, order-card PNG, home page (FAQ "When do I pay?", hero bullet "Pay after
+  your detail"), the owner's pre-filled Google Calendar draft (now only the total), the public `/api/health` note and the
+  Service Agreement. The `SITE.display.deposit` switch from Round 10 was removed with the deposit rows it controlled;
+  `SITE.display.sizePrices` remains. Internal names (`depositCents`, the `deposit_cents` column, quote maths) are unchanged.
+- `no-deposit-wording.test.ts` fails if the word reappears in any file that holds customer-facing text.
+- **Service Agreement is now version 1.1.0.** Clause 3 (was: 20% non-refundable deposit): "Payment for the selected services is
+  due when the service is complete." Clause 4 (was: late cancellation forfeits the deposit): "Please give at least 24 hours'
+  notice if you need to cancel or reschedule, so we can offer your time to another customer." Clause 5 (weather): the
+  appointment, not the deposit, moves to a new date. Every customer is asked to accept the new version on their next
+  visit, and the server rejects answers recorded against 1.0.0. These are the owner's terms, so edit the wording in
+  `site/src/data/agreement.ts` if needed (bump the version again if it changes).

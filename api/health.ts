@@ -11,5 +11,5 @@ export async function GET() {
   // Only enable customer checkout after a verified, production-safe end-to-end cutover.
   if (process.env.SQUARE_BOOKING_LAUNCH_APPROVED !== 'true') missing.push('SQUARE_BOOKING_LAUNCH_APPROVED');
   return json(missing.length ? 503 : 200,
-    { ready: missing.length === 0, missing, mode:missing.length?'request':'paid', note:missing.length?'Appointment requests only. Deposits disabled until Square write permissions are verified.':'Payment configuration enabled; monitor webhook confirmations.' }, null);
+    { ready: missing.length === 0, missing, mode:missing.length?'request':'paid', note:missing.length?'Appointment requests only. Online payment is off until Square write permissions are verified.':'Payment configuration enabled; monitor webhook confirmations.' }, null);
 }

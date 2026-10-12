@@ -3,7 +3,6 @@
 import { sizes } from '../data/menu.js';
 import { SITE } from '../data/site.js';
 
-export const SHOW_DEPOSIT: boolean = SITE.display.deposit;
 export const SHOW_SIZE_PRICES: boolean = SITE.display.sizePrices;
 
 const sizeNames = new Set(sizes.map((s) => s.name));

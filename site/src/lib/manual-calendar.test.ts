@@ -49,8 +49,8 @@ describe('manual Google Calendar booking request',()=>{
     expect(loc.searchParams.get('dates')).toBe('20261014T150000Z/20261014T170000Z');
     expect(loc.searchParams.get('stz')).toBe('America/Chicago');
     expect(loc.searchParams.get('text')).toContain('PENDING');
-    expect(loc.searchParams.get('details')).toContain('Deposit due after confirmation (20%): $40.00');
-    expect(loc.searchParams.get('details')).toContain('Remaining balance after detailing: $160.00');
+    expect(loc.searchParams.get('details')).toContain('Total: $200.00');
+    expect(loc.searchParams.get('details')).not.toMatch(/deposit|balance/i);
     expect(loc.searchParams.get('details')).toContain('2022 Toyota Camry');
     expect(loc.searchParams.get('location')).toContain('12 Oak Street');
     expect(calls).toHaveLength(1);
