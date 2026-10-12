@@ -36,16 +36,3 @@ export async function db<T = unknown>(path: string, init: { method?: string; bod
 }
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const enc = new TextEncoder();
-
-/** Signature check with a constant-time comparison. */
-export async function validSignature(rawBody: string, url: string, key: string, given: string): Promise<boolean> {
-  const k = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', k, enc.encode(url + rawBody)));
-  const expected = btoa(String.fromCharCode(...mac));
-  if (expected.length !== given.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
-  return diff === 0;
-}

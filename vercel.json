@@ -4,9 +4,5 @@
   "installCommand": "echo 'no install: the function only uses built-ins'",
   "buildCommand": "echo 'no build: the website is on GitHub Pages'",
   "outputDirectory": "checkout-public",
-  "functions": {
-    "api/create-checkout.ts": { "maxDuration": 15 },
-    "api/confirm.ts": { "maxDuration": 30 },
-    "api/square-webhook.ts": { "maxDuration": 30 }
-  }
+  "functions": { "api/create-checkout.ts": { "maxDuration": 15 } }
 }
